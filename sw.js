@@ -1,10 +1,10 @@
-const CACHE = 'polat-peyzaj-v1';
-const ASSETS = ['/', '/index.html'];
+const CACHE = 'polat-peyzaj-v2';
+const BASE = '/polat-peyzaj/';
 
 self.addEventListener('install', function(e) {
   e.waitUntil(
     caches.open(CACHE).then(function(cache) {
-      return cache.addAll(ASSETS);
+      return cache.addAll([BASE, BASE+'index.html']);
     })
   );
   self.skipWaiting();
@@ -13,30 +13,22 @@ self.addEventListener('install', function(e) {
 self.addEventListener('activate', function(e) {
   e.waitUntil(
     caches.keys().then(function(keys) {
-      return Promise.all(keys.filter(function(k){ return k !== CACHE; }).map(function(k){ return caches.delete(k); }));
+      return Promise.all(keys.filter(function(k){ return k!==CACHE; }).map(function(k){ return caches.delete(k); }));
     })
   );
   self.clients.claim();
 });
 
 self.addEventListener('fetch', function(e) {
-  // Supabase API isteklerini cache'leme
-  if(e.request.url.includes('supabase.co')) {
-    return;
-  }
+  if(e.request.url.includes('supabase.co')) return;
   e.respondWith(
     caches.match(e.request).then(function(cached) {
       return cached || fetch(e.request).then(function(response) {
-        if(response && response.status === 200 && response.type === 'basic') {
-          const clone = response.clone();
-          caches.open(CACHE).then(function(cache) {
-            cache.put(e.request, clone);
-          });
+        if(response && response.status===200 && response.type==='basic'){
+          caches.open(CACHE).then(function(cache){ cache.put(e.request, response.clone()); });
         }
         return response;
-      }).catch(function() {
-        return caches.match('/index.html');
-      });
+      }).catch(function(){ return caches.match(BASE+'index.html'); });
     })
   );
 });
