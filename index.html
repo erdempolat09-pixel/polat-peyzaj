@@ -385,7 +385,8 @@ tr:hover td { background:var(--surface2); }
         <div class="pill sel" onclick="filterDashGiderSekli(this,'tümü')">Tümü</div>
         <div class="pill" onclick="filterDashGiderSekli(this,'Erdem')">Erdem</div>
         <div class="pill" onclick="filterDashGiderSekli(this,'Davut Nakit/EFT')">Davut Nakit/EFT</div>
-        <div class="pill" onclick="filterDashGiderSekli(this,'Davut Kredi Kartı')">Davut Kredi Kartı</div>
+        <div class="pill" onclick="filterDashGiderSekli(this,'Vakıfbank Kredi Kartı')">Vakıfbank KK</div>
+        <div class="pill" onclick="filterDashGiderSekli(this,'Ziraat Kredi Kartı')">Ziraat KK</div>
       </div>
       <div class="tbl-wrap"><table>
         <thead><tr><th>Tarih</th><th>Tutar</th><th>Kategori</th><th>Ödeme Şekli</th><th>Açıklama</th></tr></thead>
@@ -510,7 +511,7 @@ tr:hover td { background:var(--surface2); }
       <div class="field"><label>Kategori</label>
         <select id="gi-kategori">
           <option>Araç Bakım Onarım</option><option>Bitki</option><option>Elektrik</option>
-          <option>Gübre</option><option>Kira</option><option>Makine Bakım Onarım</option>
+          <option>Faiz</option><option>Fatura</option><option>Faiz</option><option>Fatura</option><option>Gübre</option><option>Kira</option><option>Makine Bakım Onarım</option>
           <option>Muhasebe</option><option>Personel</option><option>Reklam</option>
           <option>Saksı</option><option>SGK</option><option>Sulama Malzemesi</option><option>Torf</option>
           <option>Toprak</option><option>Vergi</option><option>Yakıt</option><option>Diğer</option>
@@ -518,7 +519,7 @@ tr:hover td { background:var(--surface2); }
       </div>
       <div class="field" id="gi-sekli-wrap"><label>Ödeme Şekli</label>
         <select id="gi-odeme-sekli">
-          <option>Erdem</option><option>Davut Nakit/EFT</option><option>Davut Kredi Kartı</option>
+          <option>Erdem</option><option>Davut Nakit/EFT</option><option>Vakıfbank Kredi Kartı</option><option>Ziraat Kredi Kartı</option>
         </select>
       </div>
     </div>
@@ -735,7 +736,7 @@ tr:hover td { background:var(--surface2); }
     <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Bu ödeme hangi yolla yapıldı?</p>
     <div class="field" style="margin-bottom:20px"><label>Ödeme Şekli</label>
       <select id="modal-odeme-sekli">
-        <option>Erdem</option><option>Davut Nakit/EFT</option><option>Davut Kredi Kartı</option>
+        <option>Erdem</option><option>Davut Nakit/EFT</option><option>Vakıfbank Kredi Kartı</option><option>Ziraat Kredi Kartı</option>
       </select>
     </div>
     <div class="form-actions">
@@ -1330,7 +1331,7 @@ function filterGider(el,f) {
 }
 
 function renderGiderTable() {
-  const arr=getData('gider').filter(r=>r.odendi&&!r.geriAlindi);
+  const arr=getData('gider').filter(r=>r.odendi&&!r.geriAlindi).slice().sort(function(a,b){return (b.tarih||'').localeCompare(a.tarih||'');});
   const list=giderFilter==='tümü'?arr:arr.filter(r=>r.kategori===giderFilter);
   const tbody=$('gider-tbody');
   if(!list.length){ tbody.innerHTML='<tr><td colspan="6"><div class="empty"><div class="empty-icon">◎</div>Henüz gider kaydı yok</div></td></tr>'; $('gider-sum').style.display='none'; return; }
@@ -1367,7 +1368,7 @@ function renderGelecekOdemeler() {
   }
   badge.style.display='inline-block'; badge.textContent=bekleyenler.length+' bekliyor';
   bekleyenler.sort((a,b)=>(a.vadeTarih||'9999').localeCompare(b.vadeTarih||'9999'));
-  tbody.innerHTML=bekleyenler.map(r=>{
+  tbody.innerHTML=bekleyenler.slice().sort(function(a,b){return (a.vadeTarih||'9999').localeCompare(b.vadeTarih||'9999');}).map(r=>{
     const gecmis=r.vadeTarih&&r.vadeTarih<today();
     const vadeLabel=r.vadeTarih?`<span style="color:${gecmis?'var(--crit-text)':'var(--text)'}">${shortDate(r.vadeTarih)}${gecmis?' ⚠':''}</span>`:'<span style="color:var(--text3)">—</span>';
     const durumB=r.odendi?'<span class="badge b-vade">Vadeli</span>':'<span class="badge b-crit">Ödenmedi</span>';
@@ -1799,7 +1800,7 @@ document.addEventListener('click',function(e){
     <div class="field" style="margin-bottom:12px"><label>Kategori</label>
       <select id="ge-kategori">
         <option>Araç Bakım Onarım</option><option>Bitki</option><option>Elektrik</option>
-        <option>Gübre</option><option>Kira</option><option>Makine Bakım Onarım</option>
+        <option>Faiz</option><option>Fatura</option><option>Faiz</option><option>Fatura</option><option>Gübre</option><option>Kira</option><option>Makine Bakım Onarım</option>
         <option>Muhasebe</option><option>Personel</option><option>Reklam</option>
         <option>Saksı</option><option>SGK</option><option>Sulama Malzemesi</option>
         <option>Torf</option><option>Toprak</option><option>Vergi</option>
@@ -1808,7 +1809,7 @@ document.addEventListener('click',function(e){
     </div>
     <div class="field" style="margin-bottom:12px"><label>Ödeme Şekli</label>
       <select id="ge-odeme-sekli">
-        <option>Erdem</option><option>Davut Nakit/EFT</option><option>Davut Kredi Kartı</option>
+        <option>Erdem</option><option>Davut Nakit/EFT</option><option>Vakıfbank Kredi Kartı</option><option>Ziraat Kredi Kartı</option>
       </select>
     </div>
     <div class="field" style="margin-bottom:20px"><label>Açıklama</label><input type="text" id="ge-aciklama" placeholder="—"></div>
