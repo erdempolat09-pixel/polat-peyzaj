@@ -351,15 +351,9 @@ tr:hover td { background:var(--surface2); }
       <div class="metric-card"><div class="metric-label">Yıllık Gider</div><div class="metric-value" id="d-yil-gider">₺0</div><div class="metric-sub neutral">Bu yıl</div></div>
       <div class="metric-card"><div class="metric-label">Bekleyen Ödeme</div><div class="metric-value" id="d-bekleyen">₺0</div><div class="metric-sub down" id="d-bekleyen-sub">Ödenmemiş toplam</div></div>
     </div>
-    <div class="two-col">
-      <div class="card" style="margin-bottom:0">
-        <div class="card-header"><span class="card-title">Son 7 gün gider</span></div>
-        <div style="position:relative;width:100%;height:200px"><canvas id="d-gider-chart"></canvas></div>
-      </div>
-      <div class="card" style="margin-bottom:0">
-        <div class="card-header"><span class="card-title">Gider dağılımı</span></div>
-        <div style="position:relative;width:100%;height:200px"><canvas id="d-gider-pie"></canvas></div>
-      </div>
+    <div class="card">
+        <div class="card-header"><span class="card-title">Kategoriye göre gider dağılımı</span></div>
+        <div style="position:relative;width:100%;height:320px"><canvas id="d-gider-pie"></canvas></div>
     </div>
     <div class="card" style="margin-top:16px">
       <div class="card-header">
@@ -386,7 +380,9 @@ tr:hover td { background:var(--surface2); }
         <div class="pill" onclick="filterDashGiderSekli(this,'Erdem')">Erdem</div>
         <div class="pill" onclick="filterDashGiderSekli(this,'Davut Nakit/EFT')">Davut Nakit/EFT</div>
         <div class="pill" onclick="filterDashGiderSekli(this,'Vakıfbank Kredi Kartı')">Vakıfbank KK</div>
+        <div class="pill" onclick="filterDashGiderSekli(this,'Vakıfbank EFT')">Vakıfbank EFT</div>
         <div class="pill" onclick="filterDashGiderSekli(this,'Ziraat Kredi Kartı')">Ziraat KK</div>
+        <div class="pill" onclick="filterDashGiderSekli(this,'Ziraat EFT')">Ziraat EFT</div>
       </div>
       <div class="tbl-wrap"><table>
         <thead><tr><th>Tarih</th><th>Tutar</th><th>Kategori</th><th>Ödeme Şekli</th><th>Açıklama</th></tr></thead>
@@ -519,7 +515,7 @@ tr:hover td { background:var(--surface2); }
       </div>
       <div class="field" id="gi-sekli-wrap"><label>Ödeme Şekli</label>
         <select id="gi-odeme-sekli">
-          <option>Erdem</option><option>Davut Nakit/EFT</option><option>Vakıfbank Kredi Kartı</option><option>Ziraat Kredi Kartı</option>
+          <option>Erdem</option><option>Davut Nakit/EFT</option><option>Vakıfbank Kredi Kartı</option><option>Vakıfbank EFT</option><option>Ziraat Kredi Kartı</option><option>Ziraat EFT</option>
         </select>
       </div>
     </div>
@@ -560,12 +556,27 @@ tr:hover td { background:var(--surface2); }
   <div class="card">
     <div class="card-header">
       <span class="card-title">Gider Geçmişi</span>
-      <div class="pill-row" id="gider-filter-pills">
+      <div class="pill-row" id="gider-filter-pills" style="flex-wrap:wrap">
         <div class="pill sel" onclick="filterGider(this,'tümü')">Tümü</div>
-        <div class="pill" onclick="filterGider(this,'Personel')">Personel</div>
+        <div class="pill" onclick="filterGider(this,'Araç Bakım Onarım')">Araç Bakım</div>
+        <div class="pill" onclick="filterGider(this,'Bitki')">Bitki</div>
         <div class="pill" onclick="filterGider(this,'Elektrik')">Elektrik</div>
+        <div class="pill" onclick="filterGider(this,'Faiz')">Faiz</div>
+        <div class="pill" onclick="filterGider(this,'Fatura')">Fatura</div>
+        <div class="pill" onclick="filterGider(this,'Gübre')">Gübre</div>
         <div class="pill" onclick="filterGider(this,'Kira')">Kira</div>
+        <div class="pill" onclick="filterGider(this,'Makine Bakım Onarım')">Makine Bakım</div>
+        <div class="pill" onclick="filterGider(this,'Muhasebe')">Muhasebe</div>
+        <div class="pill" onclick="filterGider(this,'Personel')">Personel</div>
+        <div class="pill" onclick="filterGider(this,'Reklam')">Reklam</div>
+        <div class="pill" onclick="filterGider(this,'Saksı')">Saksı</div>
+        <div class="pill" onclick="filterGider(this,'SGK')">SGK</div>
+        <div class="pill" onclick="filterGider(this,'Sulama Malzemesi')">Sulama</div>
+        <div class="pill" onclick="filterGider(this,'Torf')">Torf</div>
+        <div class="pill" onclick="filterGider(this,'Toprak')">Toprak</div>
+        <div class="pill" onclick="filterGider(this,'Vergi')">Vergi</div>
         <div class="pill" onclick="filterGider(this,'Yakıt')">Yakıt</div>
+        <div class="pill" onclick="filterGider(this,'Diğer')">Diğer</div>
       </div>
     </div>
     <div class="tbl-wrap"><table>
@@ -736,7 +747,7 @@ tr:hover td { background:var(--surface2); }
     <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Bu ödeme hangi yolla yapıldı?</p>
     <div class="field" style="margin-bottom:20px"><label>Ödeme Şekli</label>
       <select id="modal-odeme-sekli">
-        <option>Erdem</option><option>Davut Nakit/EFT</option><option>Vakıfbank Kredi Kartı</option><option>Ziraat Kredi Kartı</option>
+        <option>Erdem</option><option>Davut Nakit/EFT</option><option>Vakıfbank Kredi Kartı</option><option>Vakıfbank EFT</option><option>Ziraat Kredi Kartı</option><option>Ziraat EFT</option>
       </select>
     </div>
     <div class="form-actions">
@@ -1004,25 +1015,27 @@ function renderDashGider() {
   $('d-yil-gider') && ($('d-yil-gider').textContent=fmt(yilG));
   $('d-bekleyen').textContent=fmt(bekleyenTutar);
 
-  const days=[],gByDay=[];
   const katMap={};
-  for(let i=6;i>=0;i--){
-    const d=daysBefore(i);
-    days.push(shortDate(d));
-    gByDay.push(gider.filter(r=>r.tarih===d).reduce((s,r)=>s+r.tutar,0));
-  }
-  gider.forEach(r=>{ katMap[r.kategori]=(katMap[r.kategori]||0)+r.tutar; });
+  gider.forEach(function(r){ katMap[r.kategori]=(katMap[r.kategori]||0)+r.tutar; });
+  // Yüksekten düşüğe sırala
+  const katSorted=Object.entries(katMap).sort(function(a,b){return b[1]-a[1];});
+  const katLabels=katSorted.map(function(x){return x[0];});
+  const katValues=katSorted.map(function(x){return x[1];});
 
-  destroyChart('dgider'); destroyChart('dgpie');
-  charts['dgider']=new Chart($('d-gider-chart'),{
-    type:'line',data:{labels:days,datasets:[{data:gByDay,borderColor:'#D85A30',backgroundColor:'rgba(216,90,48,0.08)',fill:true,tension:0.35,pointRadius:3,pointBackgroundColor:'#D85A30'}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:GRID},ticks:{font:{size:11}}},y:{grid:{color:GRID},ticks:{callback:v=>'₺'+(v/1000).toFixed(0)+'k',font:{size:11}}}}}
-  });
-  const pal=['#1D9E75','#378ADD','#7F77DD','#D85A30','#FAC775','#888780','#E24B4A','#97C459','#5DCAA5','#EF9F27'];
+  destroyChart('dgpie');
   charts['dgpie']=new Chart($('d-gider-pie'),{
-    type:'doughnut',
-    data:{labels:Object.keys(katMap),datasets:[{data:Object.values(katMap),backgroundColor:pal,borderWidth:0}]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10},padding:6}}}}
+    type:'bar',
+    data:{labels:katLabels,datasets:[{data:katValues,backgroundColor:'rgba(216,90,48,0.75)',borderColor:'#D85A30',borderWidth:1.5,borderRadius:4}]},
+    options:{
+      indexAxis:'y',
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){return ' '+fmtFull(ctx.raw);}}}},
+      scales:{
+        x:{grid:{color:GRID},ticks:{callback:function(v){return v>=1000?'₺'+(v/1000).toFixed(0)+'k':'₺'+v;},font:{size:10}}},
+        y:{grid:{display:false},ticks:{font:{size:11}}}
+      }
+    }
   });
 
   // Gelecek ödemeler dashboard — bu aya ait olanlar
@@ -1809,7 +1822,7 @@ document.addEventListener('click',function(e){
     </div>
     <div class="field" style="margin-bottom:12px"><label>Ödeme Şekli</label>
       <select id="ge-odeme-sekli">
-        <option>Erdem</option><option>Davut Nakit/EFT</option><option>Vakıfbank Kredi Kartı</option><option>Ziraat Kredi Kartı</option>
+        <option>Erdem</option><option>Davut Nakit/EFT</option><option>Vakıfbank Kredi Kartı</option><option>Vakıfbank EFT</option><option>Ziraat Kredi Kartı</option><option>Ziraat EFT</option>
       </select>
     </div>
     <div class="field" style="margin-bottom:20px"><label>Açıklama</label><input type="text" id="ge-aciklama" placeholder="—"></div>
