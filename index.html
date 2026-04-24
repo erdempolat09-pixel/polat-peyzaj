@@ -265,6 +265,8 @@ tr:hover td { background:var(--surface2); }
     <div class="nav-item" id="nav-ciro-rapor" onclick="goPage('ciro-rapor',this)"><span class="nav-icon">≋</span> Ciro Raporu</div>
     <div class="nav-item" id="nav-gider-rapor" onclick="goPage('gider-rapor',this)"><span class="nav-icon">≋</span> Gider Raporu</div>
     <div class="nav-item" id="nav-stok-rapor" onclick="goPage('stok-rapor',this)"><span class="nav-icon">≋</span> Stok Raporu</div>
+    <div class="nav-sec">Finans</div>
+    <div class="nav-item" id="nav-kredi-borc" onclick="goPage('kredi-borc',this)"><span class="nav-icon">₺</span> Kredi / Borç</div>
   </nav>
   <div class="sb-footer" id="sbDate"></div>
 </aside>
@@ -722,6 +724,91 @@ tr:hover td { background:var(--surface2); }
 </div>
 
 </div><!-- /content -->
+
+<div class="page" id="page-kredi-borc">
+  <!-- Özet kartlar -->
+  <div class="metric-grid" style="margin-bottom:20px">
+    <div class="metric-card"><div class="metric-label">Toplam Kredi</div><div class="metric-value" id="kb-toplam-kredi">₺0</div><div class="metric-sub neutral">Çekilen</div></div>
+    <div class="metric-card"><div class="metric-label">Toplam Faiz</div><div class="metric-value" id="kb-toplam-faiz">₺0</div><div class="metric-sub down">Yük</div></div>
+    <div class="metric-card"><div class="metric-label">Kalan Borç</div><div class="metric-value" id="kb-kalan-borc">₺0</div><div class="metric-sub down">Ödenmemiş</div></div>
+    <div class="metric-card">
+      <div class="metric-label">Gram Altın Kuru</div>
+      <div class="metric-value" id="kb-altin-kur">—</div>
+      <div class="metric-sub neutral" id="kb-altin-sub">Yükleniyor...</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+    <!-- Kredi Ekle -->
+    <div class="card">
+      <div class="card-header"><span class="card-title">Kredi Ekle</span></div>
+      <div class="field" style="margin-bottom:10px"><label>Banka</label><input type="text" id="kr-banka" placeholder="Ziraat, Vakıfbank..."></div>
+      <div class="form-grid-2" style="margin-bottom:10px">
+        <div class="field"><label>Çekilen Tutar (₺)</label><input type="number" id="kr-tutar" min="0" step="0.01" placeholder="0.00"></div>
+        <div class="field"><label>Faiz Oranı (%)</label><input type="number" id="kr-faiz" min="0" step="0.01" placeholder="0.00"></div>
+      </div>
+      <div class="form-grid-2" style="margin-bottom:10px">
+        <div class="field"><label>Taksit Sayısı</label><input type="number" id="kr-taksit-sayi" min="1" value="1" oninput="krHesapla()"></div>
+        <div class="field"><label>Taksit Tutarı (₺)</label><input type="number" id="kr-taksit-tutar" min="0" step="0.01" placeholder="Otomatik"></div>
+      </div>
+      <div class="form-grid-2" style="margin-bottom:10px">
+        <div class="field"><label>Çekim Tarihi</label><input type="date" id="kr-cekim-tarih"></div>
+        <div class="field"><label>İlk Taksit Tarihi</label><input type="date" id="kr-ilk-taksit"></div>
+      </div>
+      <div class="field" style="margin-bottom:14px"><label>Açıklama</label><input type="text" id="kr-aciklama" placeholder="—"></div>
+      <div class="form-actions"><button class="btn btn-green" onclick="saveKredi()">Kredi Ekle</button></div>
+    </div>
+
+    <!-- Borç Ekle -->
+    <div class="card">
+      <div class="card-header"><span class="card-title">Borç Ekle</span></div>
+      <div class="field" style="margin-bottom:10px"><label>Alacaklı (Kişi/Kurum)</label><input type="text" id="bo-alacakli" placeholder="Ad veya kurum"></div>
+      <div class="form-grid-2" style="margin-bottom:10px">
+        <div class="field"><label>Miktar</label><input type="number" id="bo-miktar" min="0" step="0.01" placeholder="0.00" oninput="boHesapla()"></div>
+        <div class="field"><label>Para Birimi</label>
+          <select id="bo-birim" onchange="boHesapla()">
+            <option value="TL">TL</option>
+            <option value="ALTIN">Gram Altın</option>
+            <option value="USD">USD</option>
+            <option value="EUR">EUR</option>
+          </select>
+        </div>
+      </div>
+      <div id="bo-kur-satirı" style="display:none;margin-bottom:10px">
+        <div class="field"><label id="bo-kur-label">TL Karşılığı</label>
+          <div style="padding:8px 12px;background:var(--surface2);border-radius:var(--r);font-family:DM Mono,monospace;font-size:14px;color:var(--green)" id="bo-tl-karsilik">—</div>
+        </div>
+      </div>
+      <div class="form-grid-2" style="margin-bottom:10px">
+        <div class="field"><label>Tarih</label><input type="date" id="bo-tarih"></div>
+        <div class="field"><label>Vade Tarihi</label><input type="date" id="bo-vade"></div>
+      </div>
+      <div class="field" style="margin-bottom:14px"><label>Açıklama</label><input type="text" id="bo-aciklama" placeholder="—"></div>
+      <div class="form-actions"><button class="btn btn-green" onclick="saveBorc()">Borç Ekle</button></div>
+    </div>
+  </div>
+
+  <!-- Kredi Listesi -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-header"><span class="card-title">Krediler</span></div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Banka</th><th>Çekilen</th><th>Faiz</th><th>Toplam</th><th>Taksit</th><th>İlk Taksit</th><th>Son Ödeme</th><th>Durum</th><th></th></tr></thead>
+      <tbody id="kredi-tbody"></tbody>
+    </table></div>
+  </div>
+
+  <!-- Borç Listesi -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">Borçlar</span>
+      <span id="kb-borc-toplam" style="font-size:12px;color:var(--text2);font-family:DM Mono,monospace"></span>
+    </div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Alacaklı</th><th>Miktar</th><th>Birim</th><th>TL Karşılığı</th><th>Tarih</th><th>Vade</th><th>Açıklama</th><th>Durum</th><th></th></tr></thead>
+      <tbody id="borc-tbody"></tbody>
+    </table></div>
+  </div>
+</div>
+
 </main>
 </div><!-- /layout -->
 
@@ -835,14 +922,18 @@ function db2stok(r){return {id:r.id,ad:r.ad,tur:r.tur||"Ağaç",birim:r.birim||"
 
 async function sbLoad(){
   showSpinner(true);
-  const [c,g,s]=await Promise.all([
+  const [c,g,s,kr,bo]=await Promise.all([
     sbQ("ciro?select=*&order=id.desc"),
     sbQ("gider?select=*&order=id.desc"),
-    sbQ("stok?select=*&order=ad.asc")
+    sbQ("stok?select=*&order=ad.asc"),
+    sbQ("kredi?select=*&order=id.desc"),
+    sbQ("borc?select=*&order=id.desc")
   ]);
   if(c)_db.ciro=c.map(db2ciro);
   if(g)_db.gider=g.map(db2gider);
   if(s)_db.stok=s.map(db2stok);
+  if(kr)_db.kredi=kr.map(db2kredi);
+  if(bo)_db.borc=bo.map(db2borc);
   showSpinner(false);
 }
 
@@ -919,7 +1010,7 @@ function destroyChart(k){ if(charts[k]){ charts[k].destroy(); delete charts[k]; 
 // ══ NAVIGATION ══
 const pageTitles={
   'dashboard':'İşletme Paneli','ciro-giris':'Ciro Girişi','gider-giris':'Gider Girişi',
-  'stok-giris':'Stok Yönetimi','ciro-rapor':'Ciro Raporu','gider-rapor':'Gider Raporu','stok-rapor':'Stok Raporu'
+  'stok-giris':'Stok Yönetimi','ciro-rapor':'Ciro Raporu','gider-rapor':'Gider Raporu','stok-rapor':'Stok Raporu','kredi-borc':'Kredi / Borç'
 };
 
 function goPage(id, navEl) {
@@ -940,6 +1031,7 @@ function refreshPage(id) {
   if(id==='ciro-rapor')  renderCiroRapor();
   if(id==='gider-rapor') renderGiderRapor();
   if(id==='stok-rapor')  renderStokRapor();
+  if(id==='kredi-borc')   renderKrediBorc();
 }
 
 // ══ DASHBOARD TABS ══
@@ -1690,6 +1782,7 @@ async function confirmDelete() {
   if(type==='ciro') renderCiroTable();
   if(type==='gider'){ renderGiderTable(); renderGelecekOdemeler(); }
   if(type==='stok'){ renderStokTable(); refreshStokSelect(); ciStokRefresh(); }
+  if(type==='kredi'||type==='borc') renderKrediBorc();
   showToast('Kayıt silindi');
 }
 
@@ -1765,6 +1858,242 @@ async function saveGiderEdit(){
   showToast('Gider güncellendi ✓');
 }
 
+
+// ══ KREDİ / BORÇ ══
+_db.kredi=[];
+_db.borc=[];
+
+function kredi2db(r){
+  return {id:r.id,banka:r.banka,tutar:r.tutar,faiz_oran:r.faizOran,toplam:r.toplam,
+    taksit_sayi:r.taksitSayi,taksit_tutar:r.taksitTutar,
+    cekim_tarih:r.cekimTarih||null,ilk_taksit:r.ilkTaksit||null,
+    aciklama:r.aciklama||null,odendi:!!r.odendi};
+}
+function db2kredi(r){
+  return {id:r.id,banka:r.banka,tutar:Number(r.tutar),faizOran:Number(r.faiz_oran||0),
+    toplam:Number(r.toplam||r.tutar),taksitSayi:Number(r.taksit_sayi||1),
+    taksitTutar:Number(r.taksit_tutar||r.toplam||r.tutar),
+    cekimTarih:r.cekim_tarih||null,ilkTaksit:r.ilk_taksit||null,
+    aciklama:r.aciklama||'',odendi:!!r.odendi};
+}
+function borc2db(r){
+  return {id:r.id,alacakli:r.alacakli,miktar:r.miktar,birim:r.birim||'TL',
+    tl_karsilik:r.tlKarsilik||null,tarih:r.tarih||null,vade:r.vade||null,
+    aciklama:r.aciklama||null,odendi:!!r.odendi};
+}
+function db2borc(r){
+  return {id:r.id,alacakli:r.alacakli,miktar:Number(r.miktar),birim:r.birim||'TL',
+    tlKarsilik:r.tl_karsilik?Number(r.tl_karsilik):null,
+    tarih:r.tarih||null,vade:r.vade||null,aciklama:r.aciklama||'',odendi:!!r.odendi};
+}
+
+// Altın kuru
+let altinKur=null;
+let dovizKur={USD:null,EUR:null};
+
+async function fetchKurlar(){
+  try {
+    // Gram altın TL - Frankfurter API ile USD/TRY + XAU/USD kombinasyonu
+    const [tryRes, xauRes] = await Promise.all([
+      fetch('https://api.frankfurter.app/latest?from=USD&to=TRY'),
+      fetch('https://api.frankfurter.app/latest?from=XAU&to=USD')
+    ]);
+    if(tryRes.ok && xauRes.ok){
+      const tryData=await tryRes.json();
+      const xauData=await xauRes.json();
+      const usdTry=tryData.rates.TRY;
+      const xauUsd=xauData.rates.USD; // 1 troy ons = ? USD
+      const troyOnsGram=31.1035; // 1 troy ons = 31.1 gram
+      const gramAltin=(xauUsd/troyOnsGram)*usdTry;
+      altinKur=Math.round(gramAltin);
+      dovizKur.USD=usdTry;
+      // EUR
+      const eurRes=await fetch('https://api.frankfurter.app/latest?from=EUR&to=TRY');
+      if(eurRes.ok){ const ed=await eurRes.json(); dovizKur.EUR=ed.rates.TRY; }
+      localStorage.setItem('pp_altin_kur', JSON.stringify({kur:altinKur,usd:dovizKur.USD,eur:dovizKur.EUR,tarih:new Date().toLocaleDateString('tr-TR')}));
+    }
+  } catch(e){
+    // Önbellekten al
+    const cached=localStorage.getItem('pp_altin_kur');
+    if(cached){ const d=JSON.parse(cached); altinKur=d.kur; dovizKur.USD=d.usd; dovizKur.EUR=d.eur; }
+  }
+  // Ekranı güncelle
+  if($('kb-altin-kur')){
+    $('kb-altin-kur').textContent=altinKur?fmtFull(altinKur):'—';
+    const cached=localStorage.getItem('pp_altin_kur');
+    const tarih=cached?JSON.parse(cached).tarih:'';
+    $('kb-altin-sub').textContent='1 gram • '+(tarih||'—');
+  }
+  boHesapla();
+}
+
+function getKur(birim){
+  if(birim==='ALTIN') return altinKur||0;
+  if(birim==='USD') return dovizKur.USD||0;
+  if(birim==='EUR') return dovizKur.EUR||0;
+  return 1;
+}
+
+function boHesapla(){
+  const birim=$('bo-birim')?.value;
+  const miktar=parseFloat($('bo-miktar')?.value)||0;
+  const satirDiv=$('bo-kur-satirı');
+  if(!satirDiv) return;
+  if(birim&&birim!=='TL'){
+    satirDiv.style.display='block';
+    const kur=getKur(birim);
+    const tl=miktar*kur;
+    const birimAd=birim==='ALTIN'?'gr altın':birim;
+    $('bo-kur-label').textContent='TL Karşılığı (1 '+birimAd+' = '+(kur?fmtFull(kur):'?')+' ₺)';
+    $('bo-tl-karsilik').textContent=kur?(fmtFull(tl)+' ₺'):'Kur yükleniyor...';
+  } else {
+    satirDiv.style.display='none';
+  }
+}
+
+function krHesapla(){
+  const tutar=parseFloat($('kr-tutar')?.value)||0;
+  const faiz=parseFloat($('kr-faiz')?.value)||0;
+  const taksitSayi=parseInt($('kr-taksit-sayi')?.value)||1;
+  if(tutar>0&&faiz>0){
+    const toplam=tutar*(1+faiz/100);
+    const taksitTutar=toplam/taksitSayi;
+    $('kr-taksit-tutar').value=taksitTutar.toFixed(2);
+  }
+}
+
+async function saveKredi(){
+  const banka=($('kr-banka').value||'').trim();
+  const tutar=parseFloat($('kr-tutar').value)||0;
+  const faizOran=parseFloat($('kr-faiz').value)||0;
+  const taksitSayi=parseInt($('kr-taksit-sayi').value)||1;
+  const taksitTutar=parseFloat($('kr-taksit-tutar').value)||0;
+  const cekimTarih=$('kr-cekim-tarih').value||null;
+  const ilkTaksit=$('kr-ilk-taksit').value||null;
+  const aciklama=($('kr-aciklama').value||'').trim();
+  if(!banka||!tutar){ showToast('Banka ve tutar zorunlu'); return; }
+  const toplam=taksitTutar*taksitSayi||tutar*(1+faizOran/100);
+  const rec={id:Date.now(),banka,tutar,faizOran,toplam,taksitSayi,taksitTutar:taksitTutar||toplam/taksitSayi,cekimTarih,ilkTaksit,aciklama,odendi:false};
+  _db.kredi.unshift(rec);
+  sbQ('kredi',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(kredi2db(rec))});
+  ['kr-banka','kr-tutar','kr-faiz','kr-taksit-tutar','kr-cekim-tarih','kr-ilk-taksit','kr-aciklama'].forEach(function(id){$(id).value='';});
+  $('kr-taksit-sayi').value='1';
+  renderKrediBorc();
+  showToast('Kredi eklendi ✓');
+}
+
+async function saveBorc(){
+  const alacakli=($('bo-alacakli').value||'').trim();
+  const miktar=parseFloat($('bo-miktar').value)||0;
+  const birim=$('bo-birim').value||'TL';
+  const tarih=$('bo-tarih').value||null;
+  const vade=$('bo-vade').value||null;
+  const aciklama=($('bo-aciklama').value||'').trim();
+  if(!alacakli||!miktar){ showToast('Alacaklı ve miktar zorunlu'); return; }
+  const kur=getKur(birim);
+  const tlKarsilik=birim==='TL'?miktar:(kur?miktar*kur:null);
+  const rec={id:Date.now(),alacakli,miktar,birim,tlKarsilik,tarih,vade,aciklama,odendi:false};
+  _db.borc.unshift(rec);
+  sbQ('borc',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(borc2db(rec))});
+  ['bo-alacakli','bo-miktar','bo-tarih','bo-vade','bo-aciklama'].forEach(function(id){$(id).value='';});
+  $('bo-birim').value='TL';
+  boHesapla();
+  renderKrediBorc();
+  showToast('Borç eklendi ✓');
+}
+
+async function toggleKrediOdendi(id){
+  const rec=_db.kredi.find(function(r){return r.id===id;});
+  if(!rec) return;
+  rec.odendi=!rec.odendi;
+  sbQ('kredi?id=eq.'+id,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({odendi:rec.odendi})});
+  renderKrediBorc();
+}
+
+async function toggleBorcOdendi(id){
+  const rec=_db.borc.find(function(r){return r.id===id;});
+  if(!rec) return;
+  rec.odendi=!rec.odendi;
+  sbQ('borc?id=eq.'+id,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({odendi:rec.odendi})});
+  renderKrediBorc();
+}
+
+function renderKrediBorc(){
+  // Özet
+  const aktifKrediler=_db.kredi.filter(function(r){return !r.odendi;});
+  const toplamCekilen=aktifKrediler.reduce(function(s,r){return s+r.tutar;},0);
+  const toplamFaiz=aktifKrediler.reduce(function(s,r){return s+(r.toplam-r.tutar);},0);
+  const toplamKalan=aktifKrediler.reduce(function(s,r){return s+r.toplam;},0);
+  $('kb-toplam-kredi').textContent=fmtFull(toplamCekilen);
+  $('kb-toplam-faiz').textContent=fmtFull(toplamFaiz);
+  $('kb-kalan-borc').textContent=fmtFull(toplamKalan);
+
+  // Kredi tablosu
+  const ktbody=$('kredi-tbody');
+  if(ktbody){
+    ktbody.innerHTML=_db.kredi.length?_db.kredi.map(function(r){
+      // Son ödeme tarihi hesapla
+      let sonOdeme='—';
+      if(r.ilkTaksit&&r.taksitSayi){
+        const d=new Date(r.ilkTaksit);
+        d.setMonth(d.getMonth()+(r.taksitSayi-1)*12);
+        sonOdeme=d.toLocaleDateString('tr-TR',{month:'short',year:'numeric'});
+      }
+      const durum=r.odendi
+        ?'<span class="badge b-ok">Ödendi</span>'
+        :'<span class="badge b-crit">Aktif</span>';
+      return '<tr style="'+(r.odendi?'opacity:0.5':'')+'">'
+        +'<td><strong>'+r.banka+'</strong>'+(r.aciklama?'<br><span style="font-size:11px;color:var(--text3)">'+r.aciklama+'</span>':'')+'</td>'
+        +'<td style="font-family:DM Mono,monospace">'+fmtFull(r.tutar)+'</td>'
+        +'<td style="font-family:DM Mono,monospace">%'+r.faizOran+'</td>'
+        +'<td style="font-family:DM Mono,monospace;font-weight:600">'+fmtFull(r.toplam)+'</td>'
+        +'<td style="font-family:DM Mono,monospace">'+r.taksitSayi+'×'+fmtFull(r.taksitTutar)+'</td>'
+        +'<td>'+(r.ilkTaksit?new Date(r.ilkTaksit).toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'}):'—')+'</td>'
+        +'<td>'+sonOdeme+'</td>'
+        +'<td>'+durum+'</td>'
+        +'<td style="display:flex;gap:4px">'
+        +'<button class="delete-btn" style="color:var(--green)" onclick="toggleKrediOdendi('+r.id+')">'+(r.odendi?'Aç':'Ödendi')+'</button>'
+        +'<button class="delete-btn" onclick="askDelete('kredi','+r.id+')">sil</button>'
+        +'</td></tr>';
+    }).join(''):'<tr><td colspan="9"><div class="empty"><div class="empty-icon">◎</div>Kredi kaydı yok</div></td></tr>';
+  }
+
+  // Borç tablosu
+  const btbody=$('borc-tbody');
+  if(btbody){
+    const aktifBorclar=_db.borc.filter(function(r){return !r.odendi;});
+    const toplamTL=aktifBorclar.reduce(function(s,r){return s+(r.tlKarsilik||0);},0);
+    const altinGram=aktifBorclar.filter(function(r){return r.birim==='ALTIN';}).reduce(function(s,r){return s+r.miktar;},0);
+    const el=$('kb-borc-toplam');
+    if(el) el.textContent='Toplam: '+fmtFull(toplamTL)+(altinGram?' | '+altinGram.toFixed(2)+' gr altın':'');
+
+    btbody.innerHTML=_db.borc.length?_db.borc.map(function(r){
+      const kur=getKur(r.birim);
+      const tl=r.birim==='TL'?r.miktar:(kur?r.miktar*kur:r.tlKarsilik);
+      const birimBadge=r.birim==='TL'?'<span class="badge b-blue">TL</span>'
+        :r.birim==='ALTIN'?'<span class="badge b-ok">Altın</span>'
+        :'<span class="badge b-low">'+r.birim+'</span>';
+      const durum=r.odendi
+        ?'<span class="badge b-ok">Ödendi</span>'
+        :'<span class="badge b-crit">Ödenmedi</span>';
+      const miktarStr=r.birim==='TL'?fmtFull(r.miktar):r.miktar+(r.birim==='ALTIN'?' gr':' '+r.birim);
+      return '<tr style="'+(r.odendi?'opacity:0.5':'')+'">'
+        +'<td><strong>'+r.alacakli+'</strong></td>'
+        +'<td style="font-family:DM Mono,monospace">'+miktarStr+'</td>'
+        +'<td>'+birimBadge+'</td>'
+        +'<td style="font-family:DM Mono,monospace;color:var(--crit-text);font-weight:600">'+(tl?fmtFull(tl)+' ₺':'—')+'</td>'
+        +'<td>'+(r.tarih?shortDate(r.tarih):'—')+'</td>'
+        +'<td>'+(r.vade?shortDate(r.vade):'—')+'</td>'
+        +'<td style="color:var(--text2)">'+(r.aciklama||'—')+'</td>'
+        +'<td>'+durum+'</td>'
+        +'<td style="display:flex;gap:4px">'
+        +'<button class="delete-btn" style="color:var(--green)" onclick="toggleBorcOdendi('+r.id+')">'+(r.odendi?'Aç':'Ödendi')+'</button>'
+        +'<button class="delete-btn" onclick="askDelete('borc','+r.id+')">sil</button>'
+        +'</td></tr>';
+    }).join(''):'<tr><td colspan="9"><div class="empty"><div class="empty-icon">◎</div>Borç kaydı yok</div></td></tr>';
+  }
+}
+
 // ══ INIT ══
 const _todayLabel=new Date().toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'});
 $('sbDate').textContent=_todayLabel;
@@ -1778,7 +2107,7 @@ document.addEventListener('click',function(e){
   const menu=$('settings-menu');
   if(menu&&!menu.parentElement.contains(e.target)) menu.style.display='none';
 });
-(async()=>{ checkAuth(); await sbLoad(); ciStokRefresh(); renderDashboard(); })();
+(async()=>{ checkAuth(); await sbLoad(); ciStokRefresh(); renderDashboard(); fetchKurlar(); })();
 </script>
 
 <!-- MODAL: Ciro Düzenle -->
