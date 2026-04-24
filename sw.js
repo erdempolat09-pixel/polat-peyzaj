@@ -1,4 +1,4 @@
-const CACHE = 'polat-peyzaj-v2';
+const CACHE = 'polat-peyzaj-v3';
 const BASE = '/polat-peyzaj/';
 
 self.addEventListener('install', function(e) {
