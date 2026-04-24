@@ -746,9 +746,7 @@ tr:hover td { background:var(--surface2); }
   </div>
 </div>
 
-</div><!-- /content -->
-
-<div class="page" id="page-finans">
+<div class="page" id="page-finans" style="min-height:100%">
   <!-- Sekmeler -->
   <div class="tab-row">
     <div class="tab active" id="ftab-kredi" onclick="switchFinTab('kredi')">Krediler &amp; Borçlar</div>
@@ -865,6 +863,10 @@ tr:hover td { background:var(--surface2); }
           <div class="field"><label>Aylık Faiz Oranı (%)</label><input type="number" id="kk-faiz" min="0" step="0.01" placeholder="3.50" oninput="kkFaizHesapla()"></div>
         </div>
         <div class="form-grid-2" style="margin-bottom:10px">
+          <div class="field"><label>Ödenen Tutar (₺)</label><input type="number" id="kk-odenen" min="0" step="0.01" placeholder="0.00" oninput="kkFaizHesapla()"></div>
+          <div class="field"><label>Kalan Borç (₺)</label><div style="padding:8px 12px;background:var(--surface2);border-radius:var(--r);font-family:DM Mono,monospace;font-size:13px;color:var(--text)" id="kk-kalan-preview">₺0</div></div>
+        </div>
+        <div class="form-grid-2" style="margin-bottom:10px">
           <div class="field"><label>Min. Ödeme (₺)</label><input type="number" id="kk-min-odeme" min="0" step="0.01" placeholder="0.00" oninput="kkFaizHesapla()"></div>
           <div class="field"><label>Aylık Faiz Yükü (₺)</label><div style="padding:8px 12px;background:var(--surface2);border-radius:var(--r);font-family:DM Mono,monospace;font-size:13px;color:var(--crit-text)" id="kk-faiz-preview">₺0</div></div>
         </div>
@@ -908,7 +910,7 @@ tr:hover td { background:var(--surface2); }
       <div class="card">
         <div class="card-header"><span class="card-title">Kredi Kartı Faiz Detayı</span></div>
         <div class="tbl-wrap"><table>
-          <thead><tr><th>Kart</th><th>Borç</th><th>Aylık Faiz %</th><th>Faiz (₺)</th><th>Min. Öd.</th></tr></thead>
+          <thead><tr><th>Kart</th><th>Borç</th><th>Ödenen</th><th>Kalan</th><th>Faiz %</th><th>Faiz (₺)</th><th>Min. Öd.</th></tr></thead>
           <tbody id="fz-kk-tbody"></tbody>
         </table></div>
       </div>
@@ -1014,6 +1016,7 @@ tr:hover td { background:var(--surface2); }
   </div>
 </div>
 </div>
+</div><!-- /content -->
 </main>
 </div><!-- /layout -->
 
@@ -2584,23 +2587,24 @@ function switchFinTab(tab){
 // ── KREDİ KARTI BORÇLARI ──
 _db.kkborc=[];
 function kkborc2db(r){
-  return {id:r.id,banka:r.banka,tutar:r.tutar,faiz_oran:r.faizOran||null,min_odeme:r.minOdeme||null,vade:r.vade||null,aciklama:r.aciklama||null,odendi:!!r.odendi};
+  return {id:r.id,banka:r.banka,tutar:r.tutar,odenen_tutar:r.odenenTutar||null,faiz_oran:r.faizOran||null,min_odeme:r.minOdeme||null,vade:r.vade||null,aciklama:r.aciklama||null,odendi:!!r.odendi};
 }
 function db2kkborc(r){
-  return {id:r.id,banka:r.banka,tutar:Number(r.tutar),faizOran:r.faiz_oran?Number(r.faiz_oran):null,minOdeme:r.min_odeme?Number(r.min_odeme):null,vade:r.vade||null,aciklama:r.aciklama||'',odendi:!!r.odendi};
+  return {id:r.id,banka:r.banka,tutar:Number(r.tutar),odenenTutar:r.odenen_tutar?Number(r.odenen_tutar):null,faizOran:r.faiz_oran?Number(r.faiz_oran):null,minOdeme:r.min_odeme?Number(r.min_odeme):null,vade:r.vade||null,aciklama:r.aciklama||'',odendi:!!r.odendi};
 }
 async function saveKrediKarti(){
   var banka=($('kk-banka').value||'').trim();
   var tutar=parseFloat($('kk-tutar').value)||0;
   var faizOran=parseFloat(($('kk-faiz')||{}).value)||null;
+  var odenenTutar=parseFloat(($('kk-odenen')||{}).value)||null;
   var minOdeme=parseFloat($('kk-min-odeme').value)||null;
   var vade=$('kk-vade').value||null;
   var aciklama=($('kk-aciklama').value||'').trim();
   if(!banka||!tutar){ showToast('Kart adı ve tutar zorunlu'); return; }
-  var rec={id:Date.now(),banka:banka,tutar:tutar,faizOran:faizOran,minOdeme:minOdeme,vade:vade,aciklama:aciklama,odendi:false};
+  var rec={id:Date.now(),banka:banka,tutar:tutar,odenenTutar:odenenTutar,faizOran:faizOran,minOdeme:minOdeme,vade:vade,aciklama:aciklama,odendi:false};
   _db.kkborc.unshift(rec);
   sbQ('kkborc',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(kkborc2db(rec))});
-  ['kk-banka','kk-tutar','kk-faiz','kk-min-odeme','kk-vade','kk-aciklama'].forEach(function(id){$(id).value='';});
+  ['kk-banka','kk-tutar','kk-odenen','kk-faiz','kk-min-odeme','kk-vade','kk-aciklama'].forEach(function(id){$(id).value='';});
   if($('kk-faiz-preview')) $('kk-faiz-preview').textContent='₺0';
   renderKKBorc();
   showToast('Kredi kartı borcu eklendi ✓');
