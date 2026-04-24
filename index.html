@@ -267,6 +267,7 @@ tr:hover td { background:var(--surface2); }
     <div class="nav-item" id="nav-stok-rapor" onclick="goPage('stok-rapor',this)"><span class="nav-icon">≋</span> Stok Raporu</div>
     <div class="nav-sec">Finans</div>
     <div class="nav-item" id="nav-kredi-borc" onclick="goPage('kredi-borc',this)"><span class="nav-icon">₺</span> Kredi / Borç</div>
+    <div class="nav-item" id="nav-finansal" onclick="goPage('finansal',this)"><span class="nav-icon">◈</span> Yatırımlar</div>
   </nav>
   <div class="sb-footer" id="sbDate"></div>
 </aside>
@@ -401,6 +402,13 @@ tr:hover td { background:var(--surface2); }
       <div class="metric-card"><div class="metric-label">Düşük Stok</div><div class="metric-value" style="color:var(--red)" id="d-stok-dusuk">0</div><div class="metric-sub neutral">ürün</div></div>
       <div class="metric-card"><div class="metric-label">Kritik Stok</div><div class="metric-value down" id="d-stok-kritik">0</div><div class="metric-sub down">sipariş gerekli</div></div>
     </div>
+
+    <!-- Pasta grafik: ayrı kart, metrikler ile tablo arasında -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header"><span class="card-title">Kategori değer dağılımı</span></div>
+      <div style="position:relative;width:100%;height:260px"><canvas id="d-stok-pie"></canvas></div>
+    </div>
+
     <div class="card">
       <div class="card-header" style="flex-wrap:wrap;gap:10px">
         <span class="card-title">Stok durumu</span>
@@ -735,6 +743,10 @@ tr:hover td { background:var(--surface2); }
       <div class="metric-label">Gram Altın Kuru</div>
       <div class="metric-value" id="kb-altin-kur">—</div>
       <div class="metric-sub neutral" id="kb-altin-sub">Yükleniyor...</div>
+      <div id="kb-manuel-kur" style="display:none;margin-top:8px;gap:6px;align-items:center">
+        <input type="number" id="kb-manuel-input" placeholder="Manuel gir" style="width:90px;font-size:12px;padding:4px 8px;border-radius:6px;border:1px solid var(--border2)">
+        <button class="btn" style="font-size:11px;padding:3px 8px" onclick="setManuelKur()">Uygula</button>
+      </div>
     </div>
   </div>
 
@@ -806,6 +818,105 @@ tr:hover td { background:var(--surface2); }
       <thead><tr><th>Alacaklı</th><th>Miktar</th><th>Birim</th><th>TL Karşılığı</th><th>Tarih</th><th>Vade</th><th>Açıklama</th><th>Durum</th><th></th></tr></thead>
       <tbody id="borc-tbody"></tbody>
     </table></div>
+  </div>
+</div>
+
+
+<div class="page" id="page-finansal">
+  <!-- Özet kartlar -->
+  <div class="metric-grid" style="margin-bottom:20px">
+    <div class="metric-card"><div class="metric-label">Toplam Yatırılan</div><div class="metric-value" id="fin-toplam-yat">₺0</div><div class="metric-sub neutral">Alış tutarı</div></div>
+    <div class="metric-card"><div class="metric-label">Gerçekleşen Kâr</div><div class="metric-value" id="fin-kar">₺0</div><div class="metric-sub up">Satıştan</div></div>
+    <div class="metric-card"><div class="metric-label">Gerçekleşen Zarar</div><div class="metric-value" id="fin-zarar">₺0</div><div class="metric-sub down">Satıştan</div></div>
+    <div class="metric-card"><div class="metric-label">Net Kâr/Zarar</div><div class="metric-value" id="fin-net">₺0</div><div class="metric-sub neutral" id="fin-net-sub">—</div></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+    <!-- Yatırım Ekle -->
+    <div class="card">
+      <div class="card-header"><span class="card-title">Yatırım Ekle</span></div>
+      <div class="form-grid-2" style="margin-bottom:10px">
+        <div class="field"><label>Tür</label>
+          <select id="fin-tur">
+            <option value="Altın">Altın</option>
+            <option value="Döviz">Döviz</option>
+            <option value="Fon">Fon</option>
+            <option value="Mevduat">Mevduat</option>
+          </select>
+        </div>
+        <div class="field"><label>Birim</label>
+          <select id="fin-birim">
+            <option value="gram">gram</option>
+            <option value="USD">USD</option>
+            <option value="EUR">EUR</option>
+            <option value="adet">adet</option>
+            <option value="TL">TL</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-grid-2" style="margin-bottom:10px">
+        <div class="field"><label>Miktar</label><input type="number" id="fin-miktar" min="0" step="any" placeholder="0"></div>
+        <div class="field"><label>Alış Fiyatı (₺/birim)</label><input type="number" id="fin-alis-fiyat" min="0" step="0.01" placeholder="0.00"></div>
+      </div>
+      <div class="field" style="margin-bottom:10px"><label>Alış Tarihi</label><input type="date" id="fin-alis-tarih"></div>
+      <div class="field" style="margin-bottom:14px"><label>Açıklama</label><input type="text" id="fin-aciklama" placeholder="—"></div>
+      <div style="padding:10px;background:var(--surface2);border-radius:var(--r);font-size:13px;margin-bottom:14px">
+        Toplam Maliyet: <strong id="fin-maliyet-preview" style="font-family:DM Mono,monospace">₺0</strong>
+      </div>
+      <div class="form-actions"><button class="btn btn-green" onclick="saveYatirim()">Yatırım Ekle</button></div>
+    </div>
+
+    <!-- Özet grafik -->
+    <div class="card">
+      <div class="card-header"><span class="card-title">Tür dağılımı</span></div>
+      <div style="position:relative;width:100%;height:240px"><canvas id="fin-pie"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Aktif Yatırımlar -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-header">
+      <span class="card-title">Aktif Yatırımlar</span>
+      <div class="pill-row" style="margin:0">
+        <div class="pill sel" onclick="filterFin(this,'tümü')">Tümü</div>
+        <div class="pill" onclick="filterFin(this,'Altın')">Altın</div>
+        <div class="pill" onclick="filterFin(this,'Döviz')">Döviz</div>
+        <div class="pill" onclick="filterFin(this,'Fon')">Fon</div>
+        <div class="pill" onclick="filterFin(this,'Mevduat')">Mevduat</div>
+      </div>
+    </div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Tür</th><th>Açıklama</th><th>Miktar</th><th>Alış Fiyatı</th><th>Maliyet</th><th>Tarih</th><th></th></tr></thead>
+      <tbody id="fin-aktif-tbody"></tbody>
+    </table></div>
+  </div>
+
+  <!-- Satış Geçmişi -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">Satış Geçmişi</span></div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Tür</th><th>Açıklama</th><th>Miktar</th><th>Alış</th><th>Satış</th><th>Maliyet</th><th>Gelir</th><th>Kâr/Zarar</th><th>Tarih</th></tr></thead>
+      <tbody id="fin-gecmis-tbody"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- MODAL: Satış Yap -->
+<div class="modal-bg" id="fin-satis-modal" onclick="closeFinSatis()">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:380px">
+    <div class="modal-header"><span class="modal-title">Satış Yap</span><button class="modal-close" onclick="closeFinSatis()">×</button></div>
+    <div id="fin-satis-bilgi" style="padding:10px;background:var(--surface2);border-radius:var(--r);font-size:13px;margin-bottom:14px"></div>
+    <div class="form-grid-2" style="margin-bottom:14px">
+      <div class="field"><label>Satış Fiyatı (₺/birim)</label><input type="number" id="fin-satis-fiyat" min="0" step="0.01" placeholder="0.00" oninput="finSatisHesapla()"></div>
+      <div class="field"><label>Satış Tarihi</label><input type="date" id="fin-satis-tarih"></div>
+    </div>
+    <div style="padding:10px;background:var(--surface2);border-radius:var(--r);font-size:13px;margin-bottom:14px">
+      Kâr/Zarar: <strong id="fin-satis-kar" style="font-family:DM Mono,monospace">—</strong>
+    </div>
+    <div class="form-actions">
+      <button class="btn" onclick="closeFinSatis()">İptal</button>
+      <button class="btn btn-green" onclick="confirmFinSatis()">Satışı Kaydet</button>
+    </div>
   </div>
 </div>
 
@@ -922,18 +1033,20 @@ function db2stok(r){return {id:r.id,ad:r.ad,tur:r.tur||"Ağaç",birim:r.birim||"
 
 async function sbLoad(){
   showSpinner(true);
-  const [c,g,s,kr,bo]=await Promise.all([
+  const [c,g,s,kr,bo,ya]=await Promise.all([
     sbQ("ciro?select=*&order=id.desc"),
     sbQ("gider?select=*&order=id.desc"),
     sbQ("stok?select=*&order=ad.asc"),
     sbQ("kredi?select=*&order=id.desc"),
-    sbQ("borc?select=*&order=id.desc")
+    sbQ("borc?select=*&order=id.desc"),
+    sbQ("yatirim?select=*&order=id.desc")
   ]);
   if(c)_db.ciro=c.map(db2ciro);
   if(g)_db.gider=g.map(db2gider);
   if(s)_db.stok=s.map(db2stok);
   if(kr)_db.kredi=kr.map(db2kredi);
   if(bo)_db.borc=bo.map(db2borc);
+  if(ya)_db.yatirim=ya.map(db2yat);
   showSpinner(false);
 }
 
@@ -1010,7 +1123,7 @@ function destroyChart(k){ if(charts[k]){ charts[k].destroy(); delete charts[k]; 
 // ══ NAVIGATION ══
 const pageTitles={
   'dashboard':'İşletme Paneli','ciro-giris':'Ciro Girişi','gider-giris':'Gider Girişi',
-  'stok-giris':'Stok Yönetimi','ciro-rapor':'Ciro Raporu','gider-rapor':'Gider Raporu','stok-rapor':'Stok Raporu','kredi-borc':'Kredi / Borç'
+  'stok-giris':'Stok Yönetimi','ciro-rapor':'Ciro Raporu','gider-rapor':'Gider Raporu','stok-rapor':'Stok Raporu','kredi-borc':'Kredi / Borç','finansal':'Yatırımlar'
 };
 
 function goPage(id, navEl) {
@@ -1032,6 +1145,7 @@ function refreshPage(id) {
   if(id==='gider-rapor') renderGiderRapor();
   if(id==='stok-rapor')  renderStokRapor();
   if(id==='kredi-borc')   renderKrediBorc();
+  if(id==='finansal')      renderFinansal();
 }
 
 // ══ DASHBOARD TABS ══
@@ -1069,20 +1183,27 @@ function renderDashboard() {
   $('d-yil-ciro').textContent=fmt(yilC);
 
   // 7 günlük grafik
-  // Aylık ciro grafiği - son 12 ay
-  const ayLabels=[], ayData=[];
-  for(let i=11;i>=0;i--){
-    const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-i);
-    const ayStr=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-    const mn=['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
-    ayLabels.push(mn[d.getMonth()]+' '+String(d.getFullYear()).slice(2));
-    ayData.push(ciro.filter(r=>r.tarih&&r.tarih.startsWith(ayStr)).reduce(function(s,r){return s+r.tutar;},0));
-  }
-  destroyChart('dciro');
-  charts['dciro']=new Chart($('d-ciro-chart'),{
-    type:'bar', data:{labels:ayLabels,datasets:[{data:ayData,backgroundColor:'rgba(29,158,117,0.75)',borderColor:'#1D9E75',borderWidth:1.5,borderRadius:4}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:GRID},ticks:{font:{size:10}}},y:{grid:{color:GRID},ticks:{callback:function(v){return v>=1000?'₺'+(v/1000).toFixed(0)+'k':'₺'+v;},font:{size:10}}}}}
+  // Aylık ciro grafiği - sadece veri olan aylar
+  const ayMap={};
+  ciro.forEach(function(r){
+    if(!r.tarih) return;
+    const ay=r.tarih.slice(0,7);
+    ayMap[ay]=(ayMap[ay]||0)+r.tutar;
   });
+  const aylarSirali=Object.keys(ayMap).sort();
+  const mn=['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+  const ayLabels=aylarSirali.map(function(a){
+    const [y,m]=a.split('-');
+    return mn[parseInt(m)-1]+' '+String(y).slice(2);
+  });
+  const ayData=aylarSirali.map(function(a){return ayMap[a];});
+  destroyChart('dciro');
+  if(ayLabels.length){
+    charts['dciro']=new Chart($('d-ciro-chart'),{
+      type:'bar', data:{labels:ayLabels,datasets:[{data:ayData,backgroundColor:'rgba(29,158,117,0.75)',borderColor:'#1D9E75',borderWidth:1.5,borderRadius:4}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:GRID},ticks:{font:{size:10}}},y:{grid:{color:GRID},ticks:{callback:function(v){return v>=1000?'₺'+(v/1000).toFixed(0)+'k':'₺'+v;},font:{size:10}}}}}
+    });
+  }
 
   // Ay filtrelerini doldur ve geçmişleri render et
   buildAyFilter('d-ciro-ay-filter', ciro);
@@ -1114,10 +1235,12 @@ function renderDashGider() {
   const katLabels=katSorted.map(function(x){return x[0];});
   const katValues=katSorted.map(function(x){return x[1];});
 
+  const giderPalette=['#D85A30','#E87A50','#1D9E75','#378ADD','#7F77DD','#FAC775','#E24B4A','#97C459','#5DCAA5','#EF9F27','#888780','#C46BB0','#4BAEE8','#F06292','#81C784','#FFB74D','#90A4AE'];
+  const katColors=katLabels.map(function(_,i){return giderPalette[i%giderPalette.length];});
   destroyChart('dgpie');
   charts['dgpie']=new Chart($('d-gider-pie'),{
     type:'bar',
-    data:{labels:katLabels,datasets:[{data:katValues,backgroundColor:'rgba(216,90,48,0.75)',borderColor:'#D85A30',borderWidth:1.5,borderRadius:4}]},
+    data:{labels:katLabels,datasets:[{data:katValues,backgroundColor:katColors,borderColor:katColors,borderWidth:1,borderRadius:4}]},
     options:{
       indexAxis:'y',
       responsive:true,
@@ -1269,9 +1392,43 @@ function renderDashStok() {
   const toplamEl=$('d-stok-toplam');
   if(showFiyat&&stok.length){
     toplamEl.style.display='flex';
-    toplamEl.innerHTML='<span>Toplam Stok Değeri: <strong>'+fmtFull(genelToplam)+'</strong></span><span style="color:var(--text3)">'+stok.filter(s=>s.birimFiyat).length+' ürünün fiyatı girilmiş</span>';
+    toplamEl.innerHTML='<span>Toplam Stok Değeri: <strong>'+fmtFull(genelToplam)+'</strong></span><span style="color:var(--text3)">'+stok.filter(function(s){return s.birimFiyat;}).length+' ürünün fiyatı girilmiş</span>';
   } else {
     toplamEl.style.display='none';
+  }
+
+  // Kategori pasta grafiği — her zaman TL değerine göre, malzeme hariç
+  const allStokFull=getData('stok');
+  const stokBitkiler=allStokFull.filter(function(s){
+    return normTurStr(s.tur||'')!==normTurStr('MALZEME') && s.miktar>0 && s.birimFiyat && s.birimFiyat>0;
+  });
+  const turPieMap={};
+  stokBitkiler.forEach(function(s){
+    const t=s.tur||'Diğer';
+    turPieMap[t]=(turPieMap[t]||0)+(s.birimFiyat*s.miktar);
+  });
+  const pieLabels=Object.keys(turPieMap);
+  const pieValues=Object.values(turPieMap);
+  const piePal=['#1D9E75','#378ADD','#7F77DD','#FAC775','#D85A30','#97C459','#5DCAA5'];
+  destroyChart('dstokpie');
+  if(pieLabels.length){
+    charts['dstokpie']=new Chart($('d-stok-pie'),{
+      type:'doughnut',
+      data:{labels:pieLabels,datasets:[{data:pieValues,backgroundColor:piePal,borderWidth:0}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'58%',
+        plugins:{
+          legend:{position:'bottom',labels:{boxWidth:10,font:{size:11},padding:8}},
+          tooltip:{
+            callbacks:{
+              label:function(ctx){
+                if(showFiyat) return ' '+ctx.label+': '+fmtFull(ctx.raw)+' ₺';
+                return ' '+ctx.label; // fiyat kapalıysa sadece isim, tutar yok
+              }
+            }
+          }
+        }
+      }
+    });
   }
 }
 
@@ -1357,7 +1514,17 @@ function renderCiroTable() {
   const list=ciroFilter==='tümü'?arr:arr.filter(r=>r.kanal===ciroFilter);
   const tbody=$('ciro-tbody');
   if(!list.length){ tbody.innerHTML='<tr><td colspan="5"><div class="empty"><div class="empty-icon">◎</div>Henüz ciro kaydı yok</div></td></tr>'; $('ciro-sum').style.display='none'; return; }
-  tbody.innerHTML=list.map(r=>'<tr><td>'+shortDate(r.tarih)+'</td><td><strong style="font-family:DM Mono,monospace">'+fmtFull(r.tutar)+'</strong></td><td><span class="badge b-blue">'+r.kanal+'</span></td><td style="color:var(--text2)">'+( r.aciklama||'—')+'</td><td style="display:flex;gap:4px"><button class="delete-btn" style="color:var(--green)" onclick="openCiroEdit('+r.id+')">düzenle</button><button class="delete-btn" onclick="askDelete(\x27ciro\x27,'+r.id+')">sil</button></td></tr>').join('');
+  tbody.innerHTML=list.map(function(r){
+    return '<tr>'
+      +'<td>'+shortDate(r.tarih)+'</td>'
+      +'<td><strong style="font-family:DM Mono,monospace">'+fmtFull(r.tutar)+'</strong></td>'
+      +'<td><span class="badge b-blue">'+r.kanal+'</span></td>'
+      +'<td style="color:var(--text2)">'+(r.aciklama||'—')+'</td>'
+      +'<td style="display:flex;gap:4px">'
+      +'<button class="delete-btn" style="color:var(--green)" onclick="openCiroEdit('+r.id+')">düzle</button>'
+      +'<button class="delete-btn" onclick="askDelete(&quot;ciro&quot;,'+r.id+')">sil</button>'
+      +'</td></tr>';
+  }).join('');
   const toplam=list.reduce((s,r)=>s+r.tutar,0);
   $('ciro-sum').style.display='flex';
   $('ciro-sum').innerHTML=`<span>Toplam: <strong>${fmtFull(toplam)}</strong></span><span style="color:var(--text3)">${list.length} kayıt</span>`;
@@ -1477,7 +1644,7 @@ function renderGelecekOdemeler() {
     const gecmis=r.vadeTarih&&r.vadeTarih<today();
     const vadeLabel=r.vadeTarih?`<span style="color:${gecmis?'var(--crit-text)':'var(--text)'}">${shortDate(r.vadeTarih)}${gecmis?' ⚠':''}</span>`:'<span style="color:var(--text3)">—</span>';
     const durumB=r.odendi?'<span class="badge b-vade">Vadeli</span>':'<span class="badge b-crit">Ödenmedi</span>';
-    return `<tr><td>${shortDate(r.girisT||r.tarih)}</td><td>${vadeLabel}</td><td><span class="badge b-low">${r.kategori}</span></td><td style="font-size:12px;color:var(--text2)">${r.odemeSekli||'—'}</td><td><strong style="font-family:DM Mono,monospace">${fmtFull(r.tutar)}</strong></td><td style="color:var(--text2)">${r.aciklama||'—'}</td><td>${durumB}</td><td style="display:flex;gap:4px;align-items:center"><button class="btn btn-green btn-sm" onclick="odemeYap(${r.id})">Ödendi</button><button class="delete-btn" onclick="askDelete('gider',${r.id})">sil</button></td></tr>`;
+    return `<tr><td>${shortDate(r.girisT||r.tarih)}</td><td>${vadeLabel}</td><td><span class="badge b-low">${r.kategori}</span></td><td style="font-size:12px;color:var(--text2)">${r.odemeSekli||'—'}</td><td><strong style="font-family:DM Mono,monospace">${fmtFull(r.tutar)}</strong></td><td style="color:var(--text2)">${r.aciklama||'—'}</td><td>${durumB}</td><td style="display:flex;gap:4px;align-items:center"><button class="btn btn-green btn-sm" onclick="odemeYap(${r.id})">Ödendi</button><button class="delete-btn" onclick="askDelete(&quot;gider&quot;,${r.id})">sil</button></td></tr>`;
   }).join('');
 }
 
@@ -1783,6 +1950,7 @@ async function confirmDelete() {
   if(type==='gider'){ renderGiderTable(); renderGelecekOdemeler(); }
   if(type==='stok'){ renderStokTable(); refreshStokSelect(); ciStokRefresh(); }
   if(type==='kredi'||type==='borc') renderKrediBorc();
+  if(type==='yatirim') renderFinansal();
   showToast('Kayıt silindi');
 }
 
@@ -1893,38 +2061,84 @@ let dovizKur={USD:null,EUR:null};
 
 async function fetchKurlar(){
   try {
-    // Gram altın TL - Frankfurter API ile USD/TRY + XAU/USD kombinasyonu
-    const [tryRes, xauRes] = await Promise.all([
-      fetch('https://api.frankfurter.app/latest?from=USD&to=TRY'),
-      fetch('https://api.frankfurter.app/latest?from=XAU&to=USD')
-    ]);
-    if(tryRes.ok && xauRes.ok){
-      const tryData=await tryRes.json();
-      const xauData=await xauRes.json();
-      const usdTry=tryData.rates.TRY;
-      const xauUsd=xauData.rates.USD; // 1 troy ons = ? USD
-      const troyOnsGram=31.1035; // 1 troy ons = 31.1 gram
-      const gramAltin=(xauUsd/troyOnsGram)*usdTry;
-      altinKur=Math.round(gramAltin);
-      dovizKur.USD=usdTry;
-      // EUR
-      const eurRes=await fetch('https://api.frankfurter.app/latest?from=EUR&to=TRY');
-      if(eurRes.ok){ const ed=await eurRes.json(); dovizKur.EUR=ed.rates.TRY; }
-      localStorage.setItem('pp_altin_kur', JSON.stringify({kur:altinKur,usd:dovizKur.USD,eur:dovizKur.EUR,tarih:new Date().toLocaleDateString('tr-TR')}));
+    // goldprice.org CORS-friendly endpoint
+    const res = await fetch('https://data-asg.goldprice.org/dbXRates/TRY', {
+      headers: {'Accept': 'application/json'}
+    });
+    if(res.ok){
+      const d = await res.json();
+      // xauPrice = 1 troy ons TRY fiyatı
+      if(d.xauPrice){
+        const troyOnsGram = 31.1035;
+        altinKur = Math.round(d.xauPrice / troyOnsGram);
+        if(d.usdPrice) dovizKur.USD = d.usdPrice;
+        // EUR için ayrı çek
+        try {
+          const eurRes = await fetch('https://api.frankfurter.app/latest?from=EUR&to=TRY');
+          if(eurRes.ok){ const ed = await eurRes.json(); dovizKur.EUR = ed.rates.TRY; }
+        } catch(e){}
+        localStorage.setItem('pp_altin_kur', JSON.stringify({kur:altinKur,usd:dovizKur.USD,eur:dovizKur.EUR,tarih:new Date().toLocaleDateString('tr-TR')}));
+      }
     }
-  } catch(e){
-    // Önbellekten al
-    const cached=localStorage.getItem('pp_altin_kur');
-    if(cached){ const d=JSON.parse(cached); altinKur=d.kur; dovizKur.USD=d.usd; dovizKur.EUR=d.eur; }
+  } catch(e){}
+
+  // Başarısız olursa Frankfurter ile dene (XAU/USD + USD/TRY)
+  if(!altinKur){
+    try {
+      const [tryRes, xauRes] = await Promise.all([
+        fetch('https://api.frankfurter.app/latest?from=USD&to=TRY'),
+        fetch('https://api.frankfurter.app/latest?from=XAU&to=USD')
+      ]);
+      if(tryRes.ok && xauRes.ok){
+        const tryData = await tryRes.json();
+        const xauData = await xauRes.json();
+        const usdTry = tryData.rates.TRY;
+        const ozUsd = xauData.rates.USD;
+        altinKur = Math.round((ozUsd / 31.1035) * usdTry);
+        dovizKur.USD = usdTry;
+        try {
+          const eurRes = await fetch('https://api.frankfurter.app/latest?from=EUR&to=TRY');
+          if(eurRes.ok){ const ed = await eurRes.json(); dovizKur.EUR = ed.rates.TRY; }
+        } catch(e){}
+        localStorage.setItem('pp_altin_kur', JSON.stringify({kur:altinKur,usd:dovizKur.USD,eur:dovizKur.EUR,tarih:new Date().toLocaleDateString('tr-TR')}));
+      }
+    } catch(e){}
   }
+
+  // Her ikisi de başarısız olursa önbellekten al
+  if(!altinKur){
+    const cached = localStorage.getItem('pp_altin_kur');
+    if(cached){
+      const d = JSON.parse(cached);
+      altinKur = d.kur; dovizKur.USD = d.usd; dovizKur.EUR = d.eur;
+    }
+  }
+
   // Ekranı güncelle
   if($('kb-altin-kur')){
-    $('kb-altin-kur').textContent=altinKur?fmtFull(altinKur):'—';
-    const cached=localStorage.getItem('pp_altin_kur');
-    const tarih=cached?JSON.parse(cached).tarih:'';
-    $('kb-altin-sub').textContent='1 gram • '+(tarih||'—');
+    $('kb-altin-kur').textContent = altinKur ? fmtFull(altinKur) : '—';
+    const cached = localStorage.getItem('pp_altin_kur');
+    const tarih = cached ? JSON.parse(cached).tarih : '';
+    $('kb-altin-sub').textContent = altinKur ? ('1 gram • ' + tarih) : 'Alınamadı — manuel girin';
   }
+
+  // Manuel giriş alanını göster/gizle
+  const manuelDiv = $('kb-manuel-kur');
+  if(manuelDiv) manuelDiv.style.display = altinKur ? 'none' : 'flex';
+
   boHesapla();
+}
+
+function setManuelKur(){
+  const val = parseFloat($('kb-manuel-input').value);
+  if(!val||val<=0){ showToast('Geçerli kur girin'); return; }
+  altinKur = val;
+  localStorage.setItem('pp_altin_kur', JSON.stringify({kur:altinKur,usd:dovizKur.USD,eur:dovizKur.EUR,tarih:new Date().toLocaleDateString('tr-TR')}));
+  $('kb-altin-kur').textContent = fmtFull(altinKur);
+  $('kb-altin-sub').textContent = '1 gram • Manuel';
+  $('kb-manuel-kur').style.display = 'none';
+  boHesapla();
+  showToast('Kur güncellendi ✓');
 }
 
 function getKur(birim){
@@ -2053,7 +2267,7 @@ function renderKrediBorc(){
         +'<td>'+durum+'</td>'
         +'<td style="display:flex;gap:4px">'
         +'<button class="delete-btn" style="color:var(--green)" onclick="toggleKrediOdendi('+r.id+')">'+(r.odendi?'Aç':'Ödendi')+'</button>'
-        +'<button class="delete-btn" onclick="askDelete('kredi','+r.id+')">sil</button>'
+        +'<button class="delete-btn" onclick="askDelete(&quot;kredi&quot;,'+r.id+')">sil</button>'
         +'</td></tr>';
     }).join(''):'<tr><td colspan="9"><div class="empty"><div class="empty-icon">◎</div>Kredi kaydı yok</div></td></tr>';
   }
@@ -2088,9 +2302,174 @@ function renderKrediBorc(){
         +'<td>'+durum+'</td>'
         +'<td style="display:flex;gap:4px">'
         +'<button class="delete-btn" style="color:var(--green)" onclick="toggleBorcOdendi('+r.id+')">'+(r.odendi?'Aç':'Ödendi')+'</button>'
-        +'<button class="delete-btn" onclick="askDelete('borc','+r.id+')">sil</button>'
+        +'<button class="delete-btn" onclick="askDelete(&quot;borc&quot;,'+r.id+')">sil</button>'
         +'</td></tr>';
     }).join(''):'<tr><td colspan="9"><div class="empty"><div class="empty-icon">◎</div>Borç kaydı yok</div></td></tr>';
+  }
+}
+
+
+// ══ FİNANSAL / YATIRIMLAR ══
+_db.yatirim=[];
+
+function yat2db(r){
+  return {id:r.id,tur:r.tur,birim:r.birim,miktar:r.miktar,
+    alis_fiyat:r.alisFiyat,maliyet:r.maliyet,alis_tarih:r.alisTarih||null,
+    aciklama:r.aciklama||null,satildi:!!r.satildi,
+    satis_fiyat:r.satisFiyat||null,satis_tarih:r.satisTarih||null,
+    kar_zarar:r.karZarar||null};
+}
+function db2yat(r){
+  return {id:r.id,tur:r.tur,birim:r.birim,miktar:Number(r.miktar),
+    alisFiyat:Number(r.alis_fiyat),maliyet:Number(r.maliyet||0),
+    alisTarih:r.alis_tarih||null,aciklama:r.aciklama||'',
+    satildi:!!r.satildi,satisFiyat:r.satis_fiyat?Number(r.satis_fiyat):null,
+    satisTarih:r.satis_tarih||null,karZarar:r.kar_zarar?Number(r.kar_zarar):null};
+}
+
+let finTurFilter='tümü';
+
+// Maliyet önizleme
+document.addEventListener('input', function(e){
+  if(['fin-miktar','fin-alis-fiyat'].includes(e.target.id)){
+    const m=parseFloat($('fin-miktar').value)||0;
+    const f=parseFloat($('fin-alis-fiyat').value)||0;
+    $('fin-maliyet-preview').textContent=fmtFull(m*f);
+  }
+});
+
+async function saveYatirim(){
+  const tur=$('fin-tur').value;
+  const birim=$('fin-birim').value;
+  const miktar=parseFloat($('fin-miktar').value)||0;
+  const alisFiyat=parseFloat($('fin-alis-fiyat').value)||0;
+  const alisTarih=$('fin-alis-tarih').value||null;
+  const aciklama=($('fin-aciklama').value||'').trim();
+  if(!miktar||!alisFiyat){ showToast('Miktar ve alış fiyatı zorunlu'); return; }
+  const maliyet=miktar*alisFiyat;
+  const rec={id:Date.now(),tur,birim,miktar,alisFiyat,maliyet,alisTarih,aciklama,satildi:false,satisFiyat:null,satisTarih:null,karZarar:null};
+  _db.yatirim.unshift(rec);
+  sbQ('yatirim',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(yat2db(rec))});
+  ['fin-miktar','fin-alis-fiyat','fin-alis-tarih','fin-aciklama'].forEach(function(id){$(id).value='';});
+  $('fin-maliyet-preview').textContent='₺0';
+  renderFinansal();
+  showToast('Yatırım eklendi ✓');
+}
+
+function filterFin(el,f){
+  finTurFilter=f;
+  document.querySelectorAll('#page-finansal .pill-row .pill').forEach(function(p){p.classList.remove('sel');});
+  el.classList.add('sel');
+  renderFinansal();
+}
+
+let pendingFinSatisId=null;
+function openFinSatis(id){
+  const r=_db.yatirim.find(function(x){return x.id===id;});
+  if(!r) return;
+  pendingFinSatisId=id;
+  $('fin-satis-bilgi').innerHTML='<strong>'+r.tur+'</strong> — '+r.miktar+' '+r.birim
+    +'<br>Alış: '+fmtFull(r.alisFiyat)+'/'+r.birim+' | Maliyet: '+fmtFull(r.maliyet);
+  $('fin-satis-fiyat').value='';
+  $('fin-satis-tarih').value=today();
+  $('fin-satis-kar').textContent='—';
+  $('fin-satis-modal').classList.add('open');
+}
+function closeFinSatis(){ pendingFinSatisId=null; $('fin-satis-modal').classList.remove('open'); }
+function finSatisHesapla(){
+  const r=_db.yatirim.find(function(x){return x.id===pendingFinSatisId;});
+  if(!r) return;
+  const sf=parseFloat($('fin-satis-fiyat').value)||0;
+  const gelir=sf*r.miktar;
+  const kz=gelir-r.maliyet;
+  const el=$('fin-satis-kar');
+  el.textContent=(kz>=0?'+':'')+fmtFull(kz);
+  el.style.color=kz>=0?'var(--green)':'var(--crit-text)';
+}
+async function confirmFinSatis(){
+  const r=_db.yatirim.find(function(x){return x.id===pendingFinSatisId;});
+  if(!r) return;
+  const sf=parseFloat($('fin-satis-fiyat').value)||0;
+  const st=$('fin-satis-tarih').value||today();
+  if(!sf){ showToast('Satış fiyatı girin'); return; }
+  const gelir=sf*r.miktar;
+  const kz=gelir-r.maliyet;
+  r.satildi=true; r.satisFiyat=sf; r.satisTarih=st; r.karZarar=kz;
+  sbQ('yatirim?id=eq.'+r.id,{method:'PATCH',headers:{'Prefer':'return=minimal'},
+    body:JSON.stringify({satildi:true,satis_fiyat:sf,satis_tarih:st,kar_zarar:kz})});
+  closeFinSatis();
+  renderFinansal();
+  showToast((kz>=0?'Kâr: +':'Zarar: ')+fmtFull(kz));
+}
+
+function renderFinansal(){
+  const aktif=_db.yatirim.filter(function(r){return !r.satildi;});
+  const satilmis=_db.yatirim.filter(function(r){return r.satildi;});
+
+  // Özet
+  const toplamYat=aktif.reduce(function(s,r){return s+r.maliyet;},0);
+  const kar=satilmis.filter(function(r){return r.karZarar>0;}).reduce(function(s,r){return s+r.karZarar;},0);
+  const zarar=satilmis.filter(function(r){return r.karZarar<0;}).reduce(function(s,r){return s+Math.abs(r.karZarar);},0);
+  const net=kar-zarar;
+  $('fin-toplam-yat').textContent=fmtFull(toplamYat);
+  $('fin-kar').textContent=fmtFull(kar);
+  $('fin-zarar').textContent=fmtFull(zarar);
+  $('fin-net').textContent=(net>=0?'+':'')+fmtFull(net);
+  $('fin-net').style.color=net>=0?'var(--green)':'var(--crit-text)';
+  $('fin-net-sub').textContent=net>=0?'Kârlı':'Zararlı';
+
+  // Tür dağılımı grafiği
+  const turMap={};
+  aktif.forEach(function(r){ turMap[r.tur]=(turMap[r.tur]||0)+r.maliyet; });
+  destroyChart('finpie');
+  if(Object.keys(turMap).length){
+    charts['finpie']=new Chart($('fin-pie'),{
+      type:'doughnut',
+      data:{labels:Object.keys(turMap),datasets:[{data:Object.values(turMap),backgroundColor:['#1D9E75','#378ADD','#7F77DD','#FAC775'],borderWidth:0}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:11},padding:8}}}}
+    });
+  }
+
+  // Aktif yatırımlar tablosu
+  const filtered=finTurFilter==='tümü'?aktif:aktif.filter(function(r){return r.tur===finTurFilter;});
+  const atbody=$('fin-aktif-tbody');
+  if(atbody){
+    const turColors={'Altın':'b-ok','Döviz':'b-blue','Fon':'b-low','Mevduat':'b-vade'};
+    atbody.innerHTML=filtered.length?filtered.map(function(r){
+      return '<tr>'
+        +'<td><span class="badge '+(turColors[r.tur]||'b-blue')+'">'+r.tur+'</span></td>'
+        +'<td style="color:var(--text2)">'+(r.aciklama||'—')+'</td>'
+        +'<td style="font-family:DM Mono,monospace">'+r.miktar+' '+r.birim+'</td>'
+        +'<td style="font-family:DM Mono,monospace">'+fmtFull(r.alisFiyat)+'/'+r.birim+'</td>'
+        +'<td style="font-family:DM Mono,monospace;font-weight:600">'+fmtFull(r.maliyet)+'</td>'
+        +'<td>'+(r.alisTarih?shortDate(r.alisTarih):'—')+'</td>'
+        +'<td style="display:flex;gap:4px">'
+        +'<button class="delete-btn" style="color:var(--green)" onclick="openFinSatis('+r.id+')">Sat</button>'
+        +'<button class="delete-btn" onclick="askDelete(&quot;yatirim&quot;,'+r.id+')">sil</button>'
+        +'</td></tr>';
+    }).join(''):'<tr><td colspan="7"><div class="empty"><div class="empty-icon">◈</div>Aktif yatırım yok</div></td></tr>';
+  }
+
+  // Satış geçmişi
+  const gtbody=$('fin-gecmis-tbody');
+  if(gtbody){
+    const sorted=satilmis.slice().sort(function(a,b){return (b.satisTarih||'').localeCompare(a.satisTarih||'');});
+    gtbody.innerHTML=sorted.length?sorted.map(function(r){
+      const kz=r.karZarar||0;
+      const kzStr=(kz>=0?'+':'')+fmtFull(kz);
+      const kzColor=kz>=0?'var(--green)':'var(--crit-text)';
+      return '<tr>'
+        +'<td><span class="badge b-blue">'+r.tur+'</span></td>'
+        +'<td style="color:var(--text2)">'+(r.aciklama||'—')+'</td>'
+        +'<td style="font-family:DM Mono,monospace">'+r.miktar+' '+r.birim+'</td>'
+        +'<td style="font-family:DM Mono,monospace">'+fmtFull(r.alisFiyat)+'</td>'
+        +'<td style="font-family:DM Mono,monospace">'+fmtFull(r.satisFiyat||0)+'</td>'
+        +'<td style="font-family:DM Mono,monospace">'+fmtFull(r.maliyet)+'</td>'
+        +'<td style="font-family:DM Mono,monospace">'+fmtFull((r.satisFiyat||0)*r.miktar)+'</td>'
+        +'<td style="font-family:DM Mono,monospace;font-weight:600;color:'+kzColor+'">'+kzStr+'</td>'
+        +'<td>'+(r.satisTarih?shortDate(r.satisTarih):'—')+'</td>'
+        +'</tr>';
+    }).join(''):'<tr><td colspan="9"><div class="empty"><div class="empty-icon">◈</div>Henüz satış yapılmadı</div></td></tr>';
   }
 }
 
