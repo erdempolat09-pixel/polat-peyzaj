@@ -237,6 +237,10 @@ tr:hover td { background:var(--surface2); }
   #fin-gecmis-tbody td:nth-child(4),
   #fin-gecmis-tbody td:nth-child(5) { display:none; }
 }
+
+@media(max-width:600px){
+  #fo-net-grid { grid-template-columns:1fr !important; }
+}
 </style>
 </head>
 <script>
@@ -1081,7 +1085,7 @@ if(localStorage.getItem('pp_auth')==='1'){
     <!-- Net durum -->
     <div class="card">
       <div class="card-header"><span class="card-title">Net Finansal Durum</span></div>
-      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:16px 0" id="fo-net-grid">
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(120px,1fr));gap:12px;padding:16px 0" id="fo-net-grid">
         <div style="text-align:center">
           <div style="font-size:12px;color:var(--text2);margin-bottom:6px">Toplam Yükümlülük</div>
           <div style="font-size:22px;font-weight:700;font-family:DM Mono,monospace;color:var(--crit-text)" id="fo-yukumluluk">₺0</div>
