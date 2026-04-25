@@ -1195,22 +1195,25 @@ function db2stok(r){return {id:r.id,ad:r.ad,tur:r.tur||"Ağaç",birim:r.birim||"
 
 async function sbLoad(){
   showSpinner(true);
-  const [c,g,s,kr,bo,ya,kk]=await Promise.all([
-    sbQ("ciro?select=*&order=id.desc"),
-    sbQ("gider?select=*&order=id.desc"),
-    sbQ("stok?select=*&order=ad.asc"),
-    sbQ("kredi?select=*&order=id.desc"),
-    sbQ("borc?select=*&order=id.desc"),
-    sbQ("yatirim?select=*&order=id.desc"),
-    sbQ("kkborc?select=*&order=id.desc")
-  ]);
-  if(c)_db.ciro=c.map(db2ciro);
-  if(g)_db.gider=g.map(db2gider);
-  if(s)_db.stok=s.map(db2stok);
-  if(kr)_db.kredi=kr.map(db2kredi);
-  if(bo)_db.borc=bo.map(db2borc);
-  if(ya)_db.yatirim=ya.map(db2yat);
-  if(kk)_db.kkborc=kk.map(db2kkborc);
+  try {
+    const results = await Promise.allSettled([
+      sbQ("ciro?select=*&order=id.desc"),
+      sbQ("gider?select=*&order=id.desc"),
+      sbQ("stok?select=*&order=ad.asc"),
+      sbQ("kredi?select=*&order=id.desc"),
+      sbQ("borc?select=*&order=id.desc"),
+      sbQ("yatirim?select=*&order=id.desc"),
+      sbQ("kkborc?select=*&order=id.desc")
+    ]);
+    const [c,g,s,kr,bo,ya,kk] = results.map(r=>r.status==='fulfilled'?r.value:null);
+    if(c)_db.ciro=c.map(db2ciro);
+    if(g)_db.gider=g.map(db2gider);
+    if(s)_db.stok=s.map(db2stok);
+    if(kr)_db.kredi=kr.map(db2kredi);
+    if(bo)_db.borc=bo.map(db2borc);
+    if(ya)_db.yatirim=ya.map(db2yat);
+    if(kk)_db.kkborc=kk.map(db2kkborc);
+  } catch(e){ console.error('sbLoad error',e); }
   showSpinner(false);
 }
 
@@ -3044,6 +3047,27 @@ function renderFinansalOzet(){
 
 }
 
+// ══ INIT ══
+const _todayLabel=new Date().toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'});
+if($('sbDate')) $('sbDate').textContent=_todayLabel;
+if($('topbarDate')) $('topbarDate').textContent=_todayLabel;
+if($('ci-tarih')) $('ci-tarih').value=today();
+if($('gi-tarih')) $('gi-tarih').value=today();
+function toggleSettings(){
+  const m=$('settings-menu');
+  if(m) m.style.display=m.style.display==='none'?'block':'none';
+}
+document.addEventListener('click',function(e){
+  const menu=$('settings-menu');
+  if(menu&&!menu.parentElement.contains(e.target)) menu.style.display='none';
+});
+(async()=>{
+  checkAuth();
+  await sbLoad();
+  ciStokRefresh();
+  renderDashboard();
+  fetchKurlar();
+})();
 </script>
 
 <script>
