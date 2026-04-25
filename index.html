@@ -1032,7 +1032,7 @@ if(localStorage.getItem('pp_auth')==='1'){
 <div class="page" id="page-fin-ozet" style="min-height:100%">
     <!-- Üst özet kartlar -->
     <div class="metric-grid" style="margin-bottom:20px">
-      <div class="metric-card"><div class="metric-label">Toplam Anapara</div><div class="metric-value down" id="fo-toplam-borc">₺0</div><div class="metric-sub down">Kredi + KK + Diğer</div></div>
+      <div class="metric-card"><div class="metric-label">Toplam Anapara</div><div class="metric-value down" id="fo-toplam-borc">₺0</div><div class="metric-sub down">Kredi + KK + Diğer + Bekleyen</div></div>
       <div class="metric-card"><div class="metric-label">Toplam Faiz Yükü</div><div class="metric-value down" id="fo-toplam-faiz">₺0</div><div class="metric-sub down">Tüm kategoriler</div></div>
       <div class="metric-card"><div class="metric-label">Toplam Borç</div><div class="metric-value down" id="fo-toplam-borc2">₺0</div><div class="metric-sub down">Anapara + Faiz</div></div>
       <div class="metric-card"><div class="metric-label">Aylık Ort. Faiz</div><div class="metric-value down" id="fo-ort-faiz">₺0</div><div class="metric-sub neutral">Tüm borçlar</div></div>
@@ -1052,6 +1052,18 @@ if(localStorage.getItem('pp_auth')==='1'){
           <thead><tr><th>Kategori</th><th>Anapara</th><th>Toplam Borç</th><th>Faiz Yükü</th><th>Aylık Ort. Faiz</th></tr></thead>
           <tbody id="fo-borc-tbody"></tbody>
           <tfoot id="fo-borc-tfoot" style="font-weight:600;background:var(--surface2)"></tfoot>
+        </table></div>
+      </div>
+
+      <!-- Bekleyen Ödemeler -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Bekleyen Ödemeler (Gider)</span>
+          <span id="fo-bekleyen-toplam" style="font-size:12px;color:var(--crit-text);font-family:DM Mono,monospace;font-weight:600"></span>
+        </div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Kategori</th><th>Açıklama</th><th>Tutar</th><th>Vade</th><th>Ödeme Şekli</th></tr></thead>
+          <tbody id="fo-bekleyen-tbody"></tbody>
         </table></div>
       </div>
 
@@ -3017,7 +3029,9 @@ function renderFinansalOzet(){
   });
 
   // ── TOPLAMLAR ──
-  var toplamAnapara=kredAnapara+kkKalan+borcToplam;
+  var bekleyenler=_db.gider.filter(function(r){return !r.odendi&&!r.geriAlindi;});
+  var bekleyenToplam=bekleyenler.reduce(function(s,r){return s+r.tutar;},0);
+  var toplamAnapara=kredAnapara+kkKalan+borcToplam+bekleyenToplam;
   var toplamFaiz=kredFaiz+kkToplamFaiz;
   var toplamBorc=toplamAnapara+toplamFaiz;
   var ortAylikFaiz=kredAylikFaiz+kkAylikFaiz;
@@ -3054,6 +3068,66 @@ function renderFinansalOzet(){
     $('fo-net2').textContent=(net>=0?'+':'')+fmtFull(net);
     $('fo-net2').style.color=net>=0?'var(--green)':'var(--crit-text)';
     if($('fo-net-label2')) $('fo-net-label2').textContent=net>=0?'Varlık fazlası':'Borç fazlası';
+  }
+
+
+  // Bekleyen ödemeler tablosu
+  var bektbody=$('fo-bekleyen-tbody');
+  if(bektbody){
+    var bekSorted=bekleyenler.slice().sort(function(a,b){return (a.vadeTarih||'9999').localeCompare(b.vadeTarih||'9999');});
+    bektbody.innerHTML=bekSorted.length?bekSorted.map(function(r){
+      var gecmis=r.vadeTarih&&r.vadeTarih<today();
+      return '<tr><td><span class="badge b-low">'+r.kategori+'</span></td>'
+        +'<td style="color:var(--text2)">'+(r.aciklama||'—')+'</td>'
+        +'<td style="font-family:DM Mono,monospace;color:var(--crit-text);font-weight:600">'+fmtFull(r.tutar)+'</td>'
+        +'<td style="color:'+(gecmis?'var(--crit-text)':'inherit')+'">'+(r.vadeTarih?shortDate(r.vadeTarih)+(gecmis?' ⚠':''):'—')+'</td>'
+        +'<td style="font-size:12px;color:var(--text2)">'+(r.odemeSekli||'—')+'</td></tr>';
+    }).join(''):'<tr><td colspan="5"><div class="empty"><div class="empty-icon">◎</div>Bekleyen ödeme yok</div></td></tr>';
+    var bel=$('fo-bekleyen-toplam');
+    if(bel) bel.textContent=bekleyenToplam?'Toplam: '+fmtFull(bekleyenToplam):'';
+  }
+
+  // Borç kategorileri tablosu
+  var btbody=$('fo-borc-tbody');
+  if(btbody){
+    var tableRows=[
+      {kat:'Banka Kredileri',anapara:kredAnapara,toplam:kredToplam,faiz:kredFaiz,aylik:kredAylikFaiz},
+      {kat:'Kredi Kartları',anapara:kkKalan,toplam:kkKalan+kkToplamFaiz,faiz:kkToplamFaiz,aylik:kkAylikFaiz},
+      {kat:'Diğer Borçlar',anapara:borcToplam,toplam:borcToplam,faiz:0,aylik:0},
+      {kat:'Bekleyen Ödemeler',anapara:bekleyenToplam,toplam:bekleyenToplam,faiz:0,aylik:0}
+    ].filter(function(r){return r.anapara>0||r.faiz>0;});
+    btbody.innerHTML=tableRows.length?tableRows.map(function(r){
+      return '<tr><td><strong>'+r.kat+'</strong></td>'
+        +'<td style="font-family:DM Mono,monospace">'+fmtFull(r.anapara)+'</td>'
+        +'<td style="font-family:DM Mono,monospace">'+fmtFull(r.toplam)+'</td>'
+        +'<td style="font-family:DM Mono,monospace;color:var(--crit-text)">'+fmtFull(r.faiz)+'</td>'
+        +'<td style="font-family:DM Mono,monospace;color:var(--crit-text)">'+fmtFull(r.aylik)+'</td></tr>';
+    }).join(''):'<tr><td colspan="5"><div class="empty"><div class="empty-icon">◎</div>Borç kaydı yok</div></td></tr>';
+    var tfoot=$('fo-borc-tfoot');
+    if(tfoot) tfoot.innerHTML='<tr><td>TOPLAM</td>'
+      +'<td style="font-family:DM Mono,monospace">'+fmtFull(toplamAnapara)+'</td>'
+      +'<td style="font-family:DM Mono,monospace">'+fmtFull(toplamBorc)+'</td>'
+      +'<td style="font-family:DM Mono,monospace;color:var(--crit-text)">'+fmtFull(toplamFaiz)+'</td>'
+      +'<td style="font-family:DM Mono,monospace;color:var(--crit-text)">'+fmtFull(ortAylikFaiz)+'</td></tr>';
+  }
+
+  // Yatırım özeti tablosu
+  var ytbody=$('fo-yatirim-tbody');
+  if(ytbody){
+    var turlar=Object.keys(yatTurMap);
+    ytbody.innerHTML=turlar.length?turlar.map(function(t){
+      var d=yatTurMap[t];
+      var kz=d.kar;
+      return '<tr><td><span class="badge b-blue">'+t+'</span></td>'
+        +'<td style="font-family:DM Mono,monospace">'+fmtFull(d.maliyet)+'</td>'
+        +'<td style="font-family:DM Mono,monospace">'+fmtFull(d.gelir)+'</td>'
+        +'<td style="font-family:DM Mono,monospace;font-weight:600;color:'+(kz>=0?'var(--green)':'var(--crit-text)')+'">'+(kz>=0?'+':'')+fmtFull(kz)+'</td></tr>';
+    }).join(''):'<tr><td colspan="4"><div class="empty"><div class="empty-icon">◈</div>Yatırım kaydı yok</div></td></tr>';
+    var ytfoot=$('fo-yatirim-tfoot');
+    if(ytfoot) ytfoot.innerHTML='<tr><td>TOPLAM</td>'
+      +'<td style="font-family:DM Mono,monospace">'+fmtFull(yatMaliyet)+'</td>'
+      +'<td style="font-family:DM Mono,monospace">'+fmtFull(yatGelir)+'</td>'
+      +'<td style="font-family:DM Mono,monospace;font-weight:600;color:'+(yatKar>=0?'var(--green)':'var(--crit-text)')+'">'+(yatKar>=0?'+':'')+fmtFull(yatKar)+'</td></tr>';
   }
 
 }
