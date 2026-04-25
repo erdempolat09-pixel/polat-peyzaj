@@ -3041,4 +3041,17 @@ function renderFinansalOzet(){
     $('fo-net2').style.color=net>=0?'var(--green)':'var(--crit-text)';
     if($('fo-net-label2')) $('fo-net-label2').textContent=net>=0?'Varlık fazlası':'Borç fazlası';
   }
-{
+
+</script>
+
+<script>
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').then(function(r){
+    console.log('SW registered');
+  }).catch(function(e){
+    console.log('SW error',e);
+  });
+}
+</script>
+</body>
+</html>
