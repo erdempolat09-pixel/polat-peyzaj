@@ -227,15 +227,21 @@ tr:hover td { background:var(--surface2); }
 .login-error { font-size:12px;color:#a32d2d;text-align:center;margin-top:12px;min-height:16px; }
 
 @media(max-width:600px){
+  #kredi-tbody td:nth-child(3),
   #kredi-tbody td:nth-child(5),
   #kredi-tbody td:nth-child(6),
   #kredi-tbody td:nth-child(7),
+  #kredi-tbody td:nth-child(8),
+  #kredi-tbody th:nth-child(3),
   #kredi-tbody th:nth-child(5),
   #kredi-tbody th:nth-child(6),
   #kredi-tbody th:nth-child(7),
+  #kredi-tbody th:nth-child(8),
+  table#kredi-table thead tr th:nth-child(3),
   table#kredi-table thead tr th:nth-child(5),
   table#kredi-table thead tr th:nth-child(6),
-  table#kredi-table thead tr th:nth-child(7) { display:none; }
+  table#kredi-table thead tr th:nth-child(7),
+  table#kredi-table thead tr th:nth-child(8) { display:none; }
   #fin-aktif-tbody td:nth-child(3),
   #fin-aktif-tbody td:nth-child(4),
   #fin-gecmis-tbody td:nth-child(4),
@@ -2228,7 +2234,10 @@ function kredi2db(r){
   return {id:r.id,banka:r.banka,tutar:r.tutar,faiz_oran:r.faizOran,toplam:r.toplam,
     taksit_sayi:r.taksitSayi,taksit_tutar:r.taksitTutar,
     cekim_tarih:r.cekimTarih||null,ilk_taksit:r.ilkTaksit||null,
-    aciklama:r.aciklama||null,odendi:!!r.odendi,ara_odemeler:JSON.stringify(r.araOdemeler||[])};
+    aciklama:r.aciklama||null,odendi:!!r.odendi,
+    odendi_tarih:r.odendiTarih||null,
+    birikmiş_faiz_son:r.birikmisFaizSon||null,
+    ara_odemeler:JSON.stringify(r.araOdemeler||[])};
 }
 function db2kredi(r){
   var ao=r.ara_odemeler; if(typeof ao==='string'){try{ao=JSON.parse(ao);}catch(e){ao=[];}}
@@ -2236,7 +2245,9 @@ function db2kredi(r){
     toplam:Number(r.toplam||r.tutar),taksitSayi:Number(r.taksit_sayi||1),
     taksitTutar:Number(r.taksit_tutar||r.toplam||r.tutar),araOdemeler:Array.isArray(ao)?ao:[],
     cekimTarih:r.cekim_tarih||null,ilkTaksit:r.ilk_taksit||null,
-    aciklama:r.aciklama||'',odendi:!!r.odendi};
+    aciklama:r.aciklama||'',odendi:!!r.odendi,
+    odendiTarih:r.odendi_tarih||null,
+    birikmisFaizSon:r['birikmiş_faiz_son']?Number(r['birikmiş_faiz_son']):null};
 }
 function borc2db(r){
   return {id:r.id,alacakli:r.alacakli,miktar:r.miktar,birim:r.birim||'TL',
@@ -3226,6 +3237,10 @@ function hesaplaMasraf(kredi){
 
 function hesaplaBirikmisFaiz(kredi,dahilMasraf){
   if(!kredi.cekimTarih||!kredi.faizOran||!kredi.tutar) return 0;
+  // Ödendi işaretliyse kayıtlı birikmiş faizi kullan (ödendiği güne kadar hesaplanmış)
+  if(kredi.odendi&&kredi.birikmisFaizSon!=null){
+    return dahilMasraf?kredi.birikmisFaizSon+hesaplaMasraf(kredi):kredi.birikmisFaizSon;
+  }
   var gunlukFaizOran=kredi.faizOran/100/365;
   var bugun=today();
   var araOdemeler=(kredi.araOdemeler||[]).slice().sort(function(a,b){return a.tarih.localeCompare(b.tarih);});
