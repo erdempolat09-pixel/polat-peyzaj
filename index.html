@@ -301,6 +301,7 @@ if(localStorage.getItem('pp_auth')==='1'){
     <div class="nav-sec">Finans</div>
     <div class="nav-item" id="nav-finans" onclick="goPage('finans',this)"><span class="nav-icon">₺</span> Finansal</div>
     <div class="nav-item" id="nav-fin-ozet" onclick="goPage('fin-ozet',this)"><span class="nav-icon">◉</span> Finansal Özet</div>
+    <div class="nav-item" id="nav-perspektif" onclick="goPage('perspektif',this)"><span class="nav-icon">◎</span> Perspektif</div>
   </nav>
   <div class="sb-footer" id="sbDate"></div>
 </aside>
@@ -1109,9 +1110,6 @@ if(localStorage.getItem('pp_auth')==='1'){
     </div>
   
 </div>
-</div><!-- /content -->
-</main>
-</div><!-- /layout -->
 
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
@@ -1320,7 +1318,7 @@ function destroyChart(k){ if(charts[k]){ charts[k].destroy(); delete charts[k]; 
 // ══ NAVIGATION ══
 const pageTitles={
   'dashboard':'İşletme Paneli','ciro-giris':'Ciro Girişi','gider-giris':'Gider Girişi',
-  'stok-giris':'Stok Yönetimi','ciro-rapor':'Ciro Raporu','gider-rapor':'Gider Raporu','stok-rapor':'Stok Raporu','finans':'Finansal','fin-ozet':'Finansal Özet'
+  'stok-giris':'Stok Yönetimi','ciro-rapor':'Ciro Raporu','gider-rapor':'Gider Raporu','stok-rapor':'Stok Raporu','finans':'Finansal','fin-ozet':'Finansal Özet','perspektif':'Gelecek Perspektifi'
 };
 
 function goPage(id, navEl) {
@@ -1343,6 +1341,7 @@ function refreshPage(id) {
   if(id==='stok-rapor')  renderStokRapor();
   if(id==='finans')       { renderKrediBorc(); renderFinansal(); renderKKBorc(); }
   if(id==='fin-ozet')     renderFinansalOzet();
+  if(id==='perspektif') renderPerspektif();
 }
 
 // ══ DASHBOARD TABS ══
@@ -3348,6 +3347,240 @@ function silKreAraOdeme(krediId, idx){
   renderKrediBorc();
   showToast('Ara ödeme silindi');
 }
+// ══ PERSPEKTİF ══
+var _prspHorizon=12, _prspScenario='gercekci';
+
+function switchPrspHorizon(n){
+  _prspHorizon=n;
+  ['6','12'].forEach(function(x){ var el=$('prsp-btn-'+x); if(el) el.className=(String(x)===String(n))?'btn btn-primary':'btn'; });
+  renderPerspektif();
+}
+
+function switchPrspScenario(s){
+  _prspScenario=s;
+  ['gercekci','iyimser','kotumser'].forEach(function(x){ var el=$('prsp-scn-'+x); if(el) el.className=(x===s)?'btn btn-primary':'btn'; });
+  renderPerspektif();
+}
+
+function renderPerspektif(){
+  var el=$('prsp-ort-ciro'); if(!el) return;
+  var bugun=today();
+  var buYil=parseInt(bugun.slice(0,4));
+  var buAyNo=parseInt(bugun.slice(5,7));
+  var horizon=_prspHorizon;
+  var senaryo=_prspScenario;
+
+  // ─ Aylık ciro topla ─
+  var ciroByMonth={};
+  (_db.ciro||[]).forEach(function(r){
+    if(!r.tarih||!r.tutar) return;
+    var ay=r.tarih.slice(0,7);
+    ciroByMonth[ay]=(ciroByMonth[ay]||0)+r.tutar;
+  });
+
+  // ─ Aylık gider topla ─
+  var giderByMonth={};
+  (_db.gider||[]).forEach(function(r){
+    if(!r.tarih||!r.tutar) return;
+    var ay=r.tarih.slice(0,7);
+    giderByMonth[ay]=(giderByMonth[ay]||0)+r.tutar;
+  });
+
+  function ayKey(yil,ay){ return yil+'-'+('0'+ay).slice(-2); }
+  function ayVal(yil,ay){ return ciroByMonth[ayKey(yil,ay)]||0; }
+
+  // ─ Sezonsal indeksler: geçen yıl (2025) tam yıl verisinden ─
+  var bazYil=buYil-1;
+  var bazToplam=0;
+  for(var m=1;m<=12;m++) bazToplam+=ayVal(bazYil,m);
+  var bazAylikOrt=bazToplam/12;
+
+  // Her ayın sezonsal indeksi (bazYıl ortalamasına oranı)
+  var sezonIndeks={};
+  for(var m=1;m<=12;m++){
+    sezonIndeks[m]=bazAylikOrt>0?ayVal(bazYil,m)/bazAylikOrt:1;
+  }
+
+  // ─ YoY büyüme: ağırlıklı ortalama (hacme göre) ─
+  // Sadece tamamlanmış aylar (buAyNo öncesi), her iki yılda da veri olanlar
+  var agirlikliPay=0, agirlikliAgirlik=0;
+  for(var m=1;m<buAyNo;m++){
+    var v2025=ayVal(bazYil,m);
+    var v2026=ayVal(buYil,m);
+    if(v2025>0&&v2026>0){
+      agirlikliPay+=v2026;        // 2026 toplamı
+      agirlikliAgirlik+=v2025;    // 2025 toplamı (ağırlık)
+    }
+  }
+  // Ağırlıklı büyüme = toplam 2026 gerçek / toplam 2025 aynı dönem
+  var yoyBuyume=agirlikliAgirlik>0?(agirlikliPay/agirlikliAgirlik):1.0;
+
+  // Senaryo katsayısı
+  var senaryoCf=senaryo==='iyimser'?1.10:senaryo==='kotumser'?0.90:1.0;
+
+  // ─ Tahmin fonksiyonu ─
+  // Gerçekleşmiş ay → gerçek veri
+  // Tahmin ayı → baz yılın aynı ayı × YoY büyüme × senaryo
+  function ayTahmini(yil,ayNo){
+    if(yil===buYil&&ayNo<buAyNo) return ayVal(buYil,ayNo); // Gerçek
+    var bazVal=ayVal(bazYil,ayNo);
+    if(bazVal>0) return bazVal*yoyBuyume*senaryoCf;
+    // Baz yılda veri yoksa: baz yıl ortalaması × sezonsal indeks
+    return bazAylikOrt*sezonIndeks[ayNo]*yoyBuyume*senaryoCf;
+  }
+
+  // ─ Gelecek aylar (bu ay dahil) ─
+  var ayList=[];
+  var dt=new Date(bugun); dt.setDate(1);
+  for(var i=0;i<horizon;i++){
+    ayList.push({yil:dt.getFullYear(),ay:dt.getMonth()+1});
+    dt.setMonth(dt.getMonth()+1);
+  }
+
+  var tahminler=ayList.map(function(d){
+    return {ayKey:ayKey(d.yil,d.ay),yil:d.yil,ayNo:d.ay,ciro:Math.round(ayTahmini(d.yil,d.ay))};
+  });
+
+  // ─ Geçmiş (bu aydan önceki 12 ay) ─
+  var gecmis=[]; var dpg=new Date(bugun); dpg.setDate(1); dpg.setMonth(dpg.getMonth()-1);
+  for(var i=0;i<12;i++){
+    var k=dpg.getFullYear()+'-'+('0'+(dpg.getMonth()+1)).slice(-2);
+    var kb=(dpg.getFullYear()-1)+'-'+('0'+(dpg.getMonth()+1)).slice(-2);
+    gecmis.unshift({ayKey:k,ciro:ciroByMonth[k]||0,bazYilCiro:ciroByMonth[kb]||0});
+    dpg.setMonth(dpg.getMonth()-1);
+  }
+
+  // ─ Metrik kartlar ─
+  var gercekBuYil=0;
+  for(var m=1;m<buAyNo;m++) gercekBuYil+=ayVal(buYil,m);
+  var kalanTahmin=tahminler.reduce(function(s,r){return r.yil===buYil?s+r.ciro:s;},0);
+  var yillikTahmin=gercekBuYil+kalanTahmin;
+  var buAyTahmin=tahminler.length>0?tahminler[0].ciro:0;
+
+  $('prsp-ort-ciro').textContent=fmtFull(yillikTahmin);
+  $('prsp-ort-ciro').style.color='var(--green)';
+  if($('prsp-ort-ciro-sub')) $('prsp-ort-ciro-sub').textContent=
+    fmtFull(gercekBuYil)+' gerçekleşti · YoY %'+(Math.round((yoyBuyume-1)*100)>0?'+':'')+Math.round((yoyBuyume-1)*100);
+  if($('prsp-bu-ay-ciro')){
+    $('prsp-bu-ay-ciro').textContent=fmtFull(buAyTahmin);
+    $('prsp-bu-ay-ciro').style.color='#6366f1';
+  }
+  if($('prsp-bu-ay-sub')){
+    var buAyAd=new Date(bugun).toLocaleDateString('tr-TR',{month:'long'});
+    $('prsp-bu-ay-sub').textContent=buAyAd+' '+buYil+' tahmini';
+  }
+
+  // Hedef
+  var hedefEl=$('prsp-hedef-input'); var hedef=hedefEl?parseFloat(hedefEl.value)||0:0;
+  if($('prsp-hedef-gos')){ $('prsp-hedef-gos').textContent=hedef>0?fmtFull(hedef):'—'; $('prsp-hedef-gos').style.color=hedef>0&&yillikTahmin>=hedef?'var(--green)':'#e89c3f'; }
+
+  // ─ Tablo ─
+  var tbody=$('prsp-tablo-tbody');
+  if(tbody){
+    var satirlar=[];
+    gecmis.forEach(function(r){
+      if(!r.ciro&&!r.bazYilCiro) return;
+      var oran=r.bazYilCiro>0&&r.ciro>0?(r.ciro/r.bazYilCiro-1)*100:null;
+      satirlar.push({ayKey:r.ayKey,gercek:r.ciro,baz:r.bazYilCiro,tahmin:null,oran:oran,tip:'gecmis'});
+    });
+    var buAyKey2=ayKey(buYil,buAyNo);
+    tahminler.forEach(function(r){
+      satirlar.push({ayKey:r.ayKey,gercek:null,baz:ayVal(bazYil,r.ayNo),tahmin:r.ciro,
+        iyimser:Math.round(ayVal(bazYil,r.ayNo)*yoyBuyume*1.10),
+        kotumser:Math.round(ayVal(bazYil,r.ayNo)*yoyBuyume*0.90),tip:'tahmin'});
+    });
+
+    tbody.innerHTML=satirlar.map(function(r){
+      var lbl=new Date(r.ayKey+'-01').toLocaleDateString('tr-TR',{month:'short',year:'2-digit'});
+      if(r.tip==='gecmis'){
+        var oranStr=r.oran!==null?'<span style="color:'+(r.oran>=0?'var(--green)':'var(--crit-text)')+'font-weight:600">'+(r.oran>=0?'+':'')+r.oran.toFixed(0)+'%</span>':'—';
+        return '<tr style="background:var(--surface2)"><td>'+lbl+'</td>'
+          +'<td style="font-family:DM Mono,monospace;color:var(--text2)">'+fmtFull(r.baz)+'</td>'
+          +'<td style="font-family:DM Mono,monospace;color:var(--green);font-weight:600">'+fmtFull(r.gercek)+'</td>'
+          +'<td>'+oranStr+'</td><td style="color:var(--text3);font-size:11px">Gerçek</td></tr>';
+      } else {
+        return '<tr><td><strong>'+lbl+'</strong></td>'
+          +'<td style="font-family:DM Mono,monospace;color:var(--text2)">'+fmtFull(r.baz)+'</td>'
+          +'<td style="font-family:DM Mono,monospace;color:#6366f1;font-weight:600">'+fmtFull(r.tahmin)+'</td>'
+          +'<td style="font-size:11px"><span style="color:var(--green)">'+fmtFull(r.iyimser)+'</span>'
+          +' / <span style="color:var(--crit-text)">'+fmtFull(r.kotumser)+'</span></td>'
+          +'<td style="color:#6366f1;font-size:11px">Tahmin</td></tr>';
+      }
+    }).join('');
+  }
+
+  // ─ Büyüme özeti ─
+  var bb=$('prsp-basbas');
+  if(bb){
+    var yoyPct=Math.round((yoyBuyume-1)*100);
+    var karsilastirmaHTML='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">';
+    for(var m=1;m<buAyNo;m++){
+      var v25=ayVal(bazYil,m); var v26=ayVal(buYil,m);
+      if(v25>0&&v26>0){
+        var pct=(v26/v25-1)*100;
+        var ayAd=new Date(buYil+'-'+('0'+m).slice(-2)+'-01').toLocaleDateString('tr-TR',{month:'long'});
+        karsilastirmaHTML+='<span style="padding:3px 10px;border-radius:4px;background:var(--surface2);font-size:11px">'
+          +ayAd+': <strong style="color:'+(pct>=0?'var(--green)':'var(--crit-text)')+'">'+( pct>=0?'+':'')+pct.toFixed(0)+'%</strong></span>';
+      }
+    }
+    karsilastirmaHTML+='</div>';
+    bb.innerHTML='<div style="font-weight:600;margin-bottom:4px">'+buYil+'/'+bazYil+' Büyüme (Ağırlıklı: %'+(yoyPct>=0?'+':'')+yoyPct+')</div>'
+      +'<div style="font-size:12px;color:var(--text2);margin-bottom:4px">Ocak-Nisan hacmine göre ağırlıklandırıldı (Şubat outlier etkisi azaltıldı)</div>'
+      +karsilastirmaHTML;
+  }
+
+
+
+  // ─ Grafikler ─
+  var anaEl=$('prsp-chart-ana'); if(!anaEl) return;
+  var scnEl=$('prsp-chart-senaryo');
+
+  (function(){
+    function lbl(k){ return new Date(k+'-01').toLocaleDateString('tr-TR',{month:'short',year:'2-digit'}); }
+
+    var gecmisAktif=gecmis.filter(function(r){return r.ciro>0||r.bazYilCiro>0;});
+    var allLbl=gecmisAktif.map(function(r){return lbl(r.ayKey);}).concat(tahminler.map(function(r){return lbl(r.ayKey);}));
+    var n=gecmisAktif.length;
+
+    if(charts['prsp-ana']){try{charts['prsp-ana'].destroy();}catch(e){} delete charts['prsp-ana'];}
+    charts['prsp-ana']=new Chart(anaEl.getContext('2d'),{type:'line',data:{labels:allLbl,datasets:[
+      {label:bazYil+' Ciro',data:gecmisAktif.map(function(r){return r.bazYilCiro||null;}).concat(tahminler.map(function(r){return ayVal(bazYil,r.ayNo)||null;})),borderColor:'#94a3b8',borderWidth:1.5,borderDash:[4,4],pointRadius:2,tension:0.3,fill:false},
+      {label:buYil+' Gerçek',data:gecmisAktif.map(function(r){return r.ciro||null;}).concat(Array(horizon).fill(null)),borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,0.08)',borderWidth:2.5,pointRadius:3,tension:0.3,fill:true},
+      {label:'Tahmin (Gerçekçi)',data:Array(n).fill(null).concat(tahminler.map(function(r){return r.ciro;})),borderColor:'#6366f1',borderWidth:2,borderDash:[6,3],pointRadius:3,tension:0.3,fill:false},
+      {label:'Gider (Gerçek)',data:gecmisAktif.map(function(r){return giderByMonth[r.ayKey]||null;}).concat(tahminler.map(function(r){return giderByMonth[r.ayKey]||null;})),borderColor:'#f97316',backgroundColor:'rgba(249,115,22,0.06)',borderWidth:2,pointRadius:3,tension:0.3,fill:false},
+    ]},options:{responsive:true,maintainAspectRatio:false,animation:false,
+      plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}}},
+      scales:{y:{ticks:{callback:function(v){return'₺'+Math.round(v/1000)+'K';}}}}}});
+
+    if(scnEl){
+      if(charts['prsp-senaryo']){try{charts['prsp-senaryo'].destroy();}catch(e){} delete charts['prsp-senaryo'];}
+      var tahminLbl=tahminler.map(function(r){return lbl(r.ayKey);});
+      charts['prsp-senaryo']=new Chart(scnEl.getContext('2d'),{type:'bar',data:{labels:tahminLbl,datasets:[
+        {label:'İyimser (+10%)',data:tahminler.map(function(r){return Math.round(ayVal(bazYil,r.ayNo)*yoyBuyume*1.10);}),backgroundColor:'rgba(34,197,94,0.6)',borderRadius:4},
+        {label:'Gerçekçi',data:tahminler.map(function(r){return r.ciro;}),backgroundColor:'rgba(99,102,241,0.6)',borderRadius:4},
+        {label:'Kötümser (-10%)',data:tahminler.map(function(r){return Math.round(ayVal(bazYil,r.ayNo)*yoyBuyume*0.90);}),backgroundColor:'rgba(239,68,68,0.5)',borderRadius:4},
+      ]},options:{responsive:true,maintainAspectRatio:false,animation:false,
+        plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}}},
+        scales:{y:{ticks:{callback:function(v){return'₺'+Math.round(v/1000)+'K';}}}}}});
+
+      var acDiv=$('prsp-senaryo-aciklama');
+      if(acDiv){
+        var iy=tahminler.reduce(function(s,r){return s+Math.round(ayVal(bazYil,r.ayNo)*yoyBuyume*1.10);},0)/tahminler.length;
+        var gr=tahminler.reduce(function(s,r){return s+r.ciro;},0)/tahminler.length;
+        var kt=tahminler.reduce(function(s,r){return s+Math.round(ayVal(bazYil,r.ayNo)*yoyBuyume*0.90);},0)/tahminler.length;
+        acDiv.innerHTML='Aylık ort. — <span style="color:var(--green)">İyimser: '+fmtFull(iy)+'</span>'
+          +' &nbsp;·&nbsp; <span style="color:#6366f1">Gerçekçi: '+fmtFull(gr)+'</span>'
+          +' &nbsp;·&nbsp; <span style="color:var(--crit-text)">Kötümser: '+fmtFull(kt)+'</span>';
+      }
+    }
+
+    setTimeout(function(){
+      ['prsp-ana','prsp-senaryo'].forEach(function(k){ if(charts[k]) try{charts[k].resize();}catch(e){}; });
+    },200);
+  })();
+}
+
+
 // ══ INIT ══
 const _todayLabel=new Date().toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'});
 if($('sbDate')) $('sbDate').textContent=_todayLabel;
@@ -3578,7 +3811,83 @@ if('serviceWorker' in navigator){
       <button class="btn btn-primary" onclick="saveGiderEdit()">Kaydet</button>
     </div>
   </div>
+
 </div>
 
+<!-- PAGE: PERSPEKTİF -->
+<div class="page" id="page-perspektif" style="min-height:100%">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+    <div>
+      <div style="font-size:13px;color:var(--text3);margin-bottom:4px">Gelecek Perspektifi</div>
+      <div style="font-size:13px;color:var(--text2)">Ciro ve gider tahmini · Nakit akışı · Senaryo analizi</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <label style="font-size:12px;color:var(--text2)">Ufuk:</label>
+      <button class="btn" id="prsp-btn-6" onclick="switchPrspHorizon(6)" style="padding:4px 12px;font-size:12px">6 Ay</button>
+      <button class="btn btn-primary" id="prsp-btn-12" onclick="switchPrspHorizon(12)" style="padding:4px 12px;font-size:12px">12 Ay</button>
+    </div>
+  </div>
+
+  <!-- Senaryo seçimi -->
+  <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+    <button class="btn btn-primary" id="prsp-scn-gercekci" onclick="switchPrspScenario('gercekci')" style="padding:6px 16px;font-size:12px">Gerçekçi</button>
+    <button class="btn" id="prsp-scn-iyimser" onclick="switchPrspScenario('iyimser')" style="padding:6px 16px;font-size:12px;color:var(--green)">İyimser</button>
+    <button class="btn" id="prsp-scn-kotumser" onclick="switchPrspScenario('kotumser')" style="padding:6px 16px;font-size:12px;color:var(--crit-text)">Kötümser</button>
+  </div>
+
+  <!-- Özet metrik kartları -->
+  <div class="metric-row" style="margin-bottom:24px" id="prsp-metric-row">
+    <div class="metric-card"><div class="metric-label">Yıllık Ciro Tahmini</div><div class="metric-value" id="prsp-ort-ciro">₺0</div><div class="metric-sub neutral" id="prsp-ort-ciro-sub">Bu yılı ne ile kapatırız</div></div>
+    <div class="metric-card"><div class="metric-label">Bu Ay Ciro Tahmini</div><div class="metric-value" id="prsp-bu-ay-ciro">₺0</div><div class="metric-sub neutral" id="prsp-bu-ay-sub">İçinde bulunulan ay</div></div>
+    
+    
+    
+    <div class="metric-card"><div class="metric-label">Hedef Ciro</div><div class="metric-value" id="prsp-hedef-gos">₺0</div><div class="metric-sub neutral">
+      <input id="prsp-hedef-input" type="number" placeholder="Aylık hedef ₺" style="width:110px;padding:2px 6px;font-size:11px;border:1px solid var(--border2);border-radius:4px;background:var(--surface);color:var(--text1)" oninput="renderPerspektif()">
+    </div></div>
+  </div>
+
+  <!-- Ana grafik: Ciro & Gider tahmini -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-header">
+      <span style="font-weight:600">Ciro & Gider Tahmini</span>
+      <span style="font-size:11px;color:var(--text3)">Geçmiş + tahmin</span>
+    </div>
+    <div style="position:relative;height:260px;overflow:hidden"><canvas id="prsp-chart-ana"></canvas></div>
+  </div>
+
+
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+    <!-- Aylık tahmin tablosu -->
+    <div class="card">
+      <div class="card-header"><span style="font-weight:600">Aylık Tahmin Detayı</span></div>
+      <div style="overflow-x:auto">
+        <table class="data-table" style="font-size:12px">
+          <thead><tr><th>Ay</th><th>Geçen Yıl</th><th>Bu Yıl / Tahmin</th><th>İyimser / Kötümser</th><th>Durum</th></tr></thead>
+          <tbody id="prsp-tablo-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Senaryo karşılaştırma -->
+    <div class="card">
+      <div class="card-header"><span style="font-weight:600">Senaryo Karşılaştırması</span></div>
+      <div style="height:200px;position:relative;display:block"><canvas id="prsp-chart-senaryo" style="display:block;width:100%;height:200px"></canvas></div>
+      <div id="prsp-senaryo-aciklama" style="margin-top:10px;font-size:11px;color:var(--text2);line-height:1.5"></div>
+    </div>
+  </div>
+
+
+
+  <!-- Başabaş analizi -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-header"><span style="font-weight:600">Başabaş Analizi</span></div>
+    <div id="prsp-basbas" style="font-size:12px;color:var(--text2);padding:8px 0"></div>
+  </div>
+</div>
+</main>
+</div><!-- /layout -->
+
 </body>
-<
+
+</html>
