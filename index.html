@@ -61,7 +61,7 @@ body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text)
 .page { display:none; } .page.active { display:block; }
 
 /* ── METRICS ── */
-.metric-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:20px; }
+.metric-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-bottom:20px; }
 .metric-card { background:var(--surface); border-radius:var(--rl); padding:18px 20px; border:1px solid var(--border); }
 .metric-label { font-size:11.5px; color:var(--text3); margin-bottom:8px; font-weight:500; letter-spacing:0.03em; }
 .metric-value { font-size:24px; font-weight:500; color:var(--text); font-family:DM Mono,monospace; }
@@ -1044,12 +1044,8 @@ if(localStorage.getItem('pp_auth')==='1'){
       <div class="metric-card"><div class="metric-label">Toplam Borç Anapara</div><div class="metric-value down" id="fo-toplam-borc">₺0</div><div class="metric-sub down">Kredi + KK + Diğer + Bekleyen</div></div>
       <div class="metric-card"><div class="metric-label">Toplam Birikmiş Faiz</div><div class="metric-value down" id="fo-toplam-faiz">₺0</div><div class="metric-sub down">Tüm zamanlar</div></div>
       <div class="metric-card"><div class="metric-label">Toplam Borç</div><div class="metric-value down" id="fo-toplam-borc2">₺0</div><div class="metric-sub down">Anapara + Birikmiş Faiz</div></div>
-      <div class="metric-card"><div class="metric-label">Aylık Ort. Ödenen Faiz</div><div class="metric-value down" id="fo-ort-faiz">₺0</div><div class="metric-sub neutral">Yıllık faiz / geçen günler × 30</div></div>
-    </div>
-    <div class="metric-grid" style="margin-bottom:20px">
-      <div class="metric-card"><div class="metric-label">Nakit ve Yatırımlar</div><div class="metric-value" id="fo-toplam-yatirim">₺0</div><div class="metric-sub neutral">Aktif</div></div>
-      <div class="metric-card"><div class="metric-label">Yatırım Kar/Zarar</div><div class="metric-value up" id="fo-yatirim-gelir">₺0</div><div class="metric-sub up">Gerçekleşen</div></div>
-      <div class="metric-card"><div class="metric-label">Net Kâr/Zarar</div><div class="metric-value" id="fo-yat-kar">₺0</div><div class="metric-sub neutral" id="fo-yat-kar-sub">—</div></div>
+      <div class="metric-card"><div class="metric-label">Yatırım Anapara</div><div class="metric-value" id="fo-toplam-yatirim">₺0</div><div class="metric-sub neutral" id="fo-yatirim-sub">Aktif maliyet</div></div>
+      <div class="metric-card"><div class="metric-label">Yatırım Güncel Değer</div><div class="metric-value" id="fo-yatirim-guncel">₺0</div><div class="metric-sub neutral" id="fo-yatirim-kar-sub">—</div></div>
       <div class="metric-card"><div class="metric-label">Net Finansal Durum</div><div class="metric-value" id="fo-net">₺0</div><div class="metric-sub neutral" id="fo-net-label">—</div></div>
     </div>
 
@@ -1058,7 +1054,7 @@ if(localStorage.getItem('pp_auth')==='1'){
       <div class="card">
         <div class="card-header"><span class="card-title">Borç Kategorileri</span></div>
         <div class="tbl-wrap"><table>
-          <thead><tr><th>Kategori</th><th>Anapara</th><th>Toplam Borç</th><th>Faiz Yükü</th><th>Aylık Ort. Faiz</th></tr></thead>
+          <thead><tr><th>Kategori</th><th>Anapara</th><th>Toplam Borç</th><th>Faiz Yükü</th></tr></thead>
           <tbody id="fo-borc-tbody"></tbody>
           <tfoot id="fo-borc-tfoot" style="font-weight:600;background:var(--surface2)"></tfoot>
         </table></div>
@@ -3093,9 +3089,9 @@ function renderFinansalOzet(){
   var yillikToplamFaiz=krediBuYilFaiz+kkToplamFaiz;
   var toplamBirikmisFaizOzet=aktifKrediler.reduce(function(s,r){return s+hesaplaBirikmisFaiz(r,true);},0)+kkToplamFaiz;
   var gecenYilFaiz=krediGecenYilFaiz;
-  // En eski aktif kredi çekim tarihinden bugüne
+  // En eski AKTİF kredi çekim tarihinden bugüne (ödendi işaretlenenler dahil değil)
   var enEskiOzet=aktifKrediler.reduce(function(mn,r){
-    if(!r.cekimTarih) return mn;
+    if(!r.cekimTarih||r.odendi) return mn;
     return (!mn||r.cekimTarih<mn)?r.cekimTarih:mn;
   },null);
   var yilGecenGun=Math.max(1,gunFarki(yilBaslangic,bugun));
@@ -3121,6 +3117,22 @@ function renderFinansalOzet(){
   if($('fo-toplam-borc2')) $('fo-toplam-borc2').textContent=fmtFull(toplamBorc);
   if($('fo-ort-faiz')) $('fo-ort-faiz').textContent=fmtFull(ortAylikFaiz);
   if($('fo-toplam-yatirim')) $('fo-toplam-yatirim').textContent=fmtFull(yatMaliyet);
+  // Güncel değer: aktif yatırımların güncel TL değeri (altın/döviz kurlu)
+  var yatGuncelDeger=aktifYat.reduce(function(s,r){
+    if(r.tur==='ALTIN'||r.tur==='Altın'||r.tur==='altin') return s+(r.miktar*(altinKur||r.alisFiyat));
+    if(r.tur==='USD'||r.tur==='EUR') return s+(r.miktar*((r.tur==='USD'?dovizKur.USD:dovizKur.EUR)||r.alisFiyat));
+    return s+r.maliyet;
+  },0);
+  var yatKarZarar=yatGuncelDeger-yatMaliyet;
+  if($('fo-yatirim-guncel')){
+    $('fo-yatirim-guncel').textContent=fmtFull(yatGuncelDeger||yatMaliyet);
+    $('fo-yatirim-guncel').style.color=yatKarZarar>=0?'var(--green)':'var(--crit-text)';
+  }
+  if($('fo-yatirim-kar-sub')){
+    var karStr=(yatKarZarar>=0?'+':'')+fmtFull(yatKarZarar);
+    $('fo-yatirim-kar-sub').textContent=karStr+' (K/Z)';
+    $('fo-yatirim-kar-sub').style.color=yatKarZarar>=0?'var(--green)':'var(--crit-text)';
+  }
   if($('fo-yatirim-gelir')){
     $('fo-yatirim-gelir').textContent=(yatKar>=0?'+':'')+fmtFull(yatKar);
     $('fo-yatirim-gelir').style.color=yatKar>=0?'var(--green)':'var(--crit-text)';
@@ -3175,7 +3187,7 @@ function renderFinansalOzet(){
         +'<td style="font-family:DM Mono,monospace">'+fmtFull(r.anapara)+'</td>'
         +'<td style="font-family:DM Mono,monospace">'+fmtFull(r.toplam)+'</td>'
         +'<td style="font-family:DM Mono,monospace;color:var(--crit-text)">'+fmtFull(r.faiz)+'</td>'
-        +'<td style="font-family:DM Mono,monospace;color:var(--crit-text)">'+fmtFull(r.aylik)+'</td></tr>';
+        +'</tr>';
     }).join('');
     var tfoot=$('fo-borc-tfoot');
     var toplamSatirFaiz=tableRows.reduce(function(s,r){return s+r.faiz;},0);
@@ -3183,7 +3195,7 @@ function renderFinansalOzet(){
       +'<td style="font-family:DM Mono,monospace">'+fmtFull(toplamAnapara)+'</td>'
       +'<td style="font-family:DM Mono,monospace">'+fmtFull(toplamBorc)+'</td>'
       +'<td style="font-family:DM Mono,monospace;color:var(--crit-text)">'+fmtFull(toplamSatirFaiz)+'</td>'
-      +'<td style="font-family:DM Mono,monospace;color:var(--crit-text)">'+fmtFull(ortAylikFaiz)+'</td></tr>';
+      +'</tr>';
   }
 
   // Yatırım özeti tablosu
